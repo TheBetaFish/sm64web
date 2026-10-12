@@ -20,6 +20,9 @@
 #define GL_GLEXT_PROTOTYPES 1
 
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #ifdef USE_GLES
 #include <SDL2/SDL_opengles2.h>
 #else
