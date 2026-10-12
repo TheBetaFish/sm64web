@@ -196,8 +196,22 @@ bool gfx_sdl_check_opengl_compatibility(void) {
     return validVersion;
 }
 
-static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+static void gfx_sdl_browser_frame(void *callback) {
+    void (*run_one_game_iter)(void) = callback;
     run_one_game_iter();
+}
+#endif
+
+static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
+#ifdef __EMSCRIPTEN__
+    // Browsers must return control to the event loop between frames.
+    // The normal native while-loop cannot run synchronously on the web.
+    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, run_one_game_iter, 0, 1);
+#else
+    run_one_game_iter();
+#endif
 }
 
 static void gfx_sdl_get_dimensions(uint32_t *width, uint32_t *height) {
