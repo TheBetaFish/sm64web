@@ -611,6 +611,15 @@ int main(int argc, char *argv[]) {
     }
 
     // main loop
+#ifdef __EMSCRIPTEN__
+    // The browser loop is asynchronous and does not return when registered.
+    // Do not wrap it in the native desktop's synchronous while-loop.
+    debug_context_reset();
+    CTX_BEGIN(CTX_TOTAL);
+    gWindowApi->main_loop(produce_one_frame);
+    CTX_END(CTX_TOTAL);
+    return 0;
+#else
     while (true) {
         debug_context_reset();
         CTX_BEGIN(CTX_TOTAL);
@@ -632,4 +641,5 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+#endif
 }
