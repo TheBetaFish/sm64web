@@ -27,11 +27,21 @@ jobs:
           emcc --version
           command -v emmake
 
+      - name: Build Lua for WebAssembly
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsSL https://www.lua.org/ftp/lua-5.3.6.tar.gz -o /tmp/lua-5.3.6.tar.gz
+          tar -xzf /tmp/lua-5.3.6.tar.gz -C /tmp
+          emmake make -C /tmp/lua-5.3.6/src generic CC=emcc AR=emar RANLIB=emranlib
+          mkdir -p lib/lua/emscripten
+          cp /tmp/lua-5.3.6/src/liblua.a lib/lua/emscripten/liblua53.a
+
       - name: Attempt browser build
         shell: bash
         run: |
           set -o pipefail
-          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 EXTRA_CFLAGS=-sUSE_ZLIB=1 2>&1 | tee emscripten-build.log
+          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 EXE=build/us_pc/sm64coopdx.html LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sFULL_ES2=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sALLOW_MEMORY_GROWTH=1 -Llib/lua/emscripten -llua53 -lm" 2>&1 | tee emscripten-build.log
 
       - name: Upload build log
         if: always()
