@@ -1,0 +1,54 @@
+name: Experimental WebAssembly build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci/emscripten-web-build
+
+permissions:
+  contents: read
+
+jobs:
+  webassembly:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+          actions-cache-folder: emsdk-cache
+
+      - name: Show toolchain
+        run: |
+          emcc --version
+          emmake --version
+
+      - name: Attempt browser build
+        shell: bash
+        run: |
+          set -o pipefail
+          emmake make -j2 DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 2>&1 | tee emscripten-build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emscripten-build-log
+          path: emscripten-build.log
+          if-no-files-found: ignore
+
+      - name: Upload browser build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sm64web-wasm
+          path: |
+            build/us_pc/*.html
+            build/us_pc/*.js
+            build/us_pc/*.wasm
+            build/us_pc/*.data
+          if-no-files-found: error
