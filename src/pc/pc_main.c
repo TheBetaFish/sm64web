@@ -468,11 +468,20 @@ void game_exit(void) {
 }
 
 void* main_game_init(UNUSED void* dummy) {
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: main_game_init entered\\n");
+#endif
     // load language
     if (!djui_language_init(configLanguage)) { snprintf(configLanguage, MAX_CONFIG_STRING, "%s", ""); }
 
     LOADING_SCREEN_MUTEX(loading_screen_set_segment_text("Loading"));
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: initializing DynOS graphics\\n");
+#endif
     dynos_gfx_init();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: initializing sync objects\\n");
+#endif
     enable_queued_dynos_packs();
     sync_objects_init_system();
 
@@ -481,7 +490,13 @@ void* main_game_init(UNUSED void* dummy) {
     }
 
     LOADING_SCREEN_MUTEX(loading_screen_set_segment_text("Loading ROM Assets"));
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: loading ROM assets\\n");
+#endif
     rom_assets_load();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: ROM assets loaded\\n");
+#endif
     smlua_text_utils_init();
 
     mods_init();
@@ -491,6 +506,9 @@ void* main_game_init(UNUSED void* dummy) {
         loading_screen_set_segment_text("Starting Game");
     );
 
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: initializing audio\\n");
+#endif
     audio_init();
     sound_init();
     network_player_init();
@@ -550,6 +568,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: ROM accepted; starting game initialization\\n");
+#endif
     // start the thread for setting up the game
     bool threadSuccess = false;
     if (!gCLIOpts.hideLoadingScreen && !gCLIOpts.headless) {
@@ -564,6 +585,9 @@ int main(int argc, char *argv[]) {
     }
 
     // initialize sm64 data and controllers
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: entering game loop\\n");
+#endif
     thread5_game_loop(NULL);
 
     // Initialize the audio thread if possible.
