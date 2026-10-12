@@ -119,6 +119,13 @@ void legacy_folder_handler(void) {
 }
 
 bool main_rom_handler(void) {
+#if defined(__EMSCRIPTEN__)
+    // The browser ROM picker writes the selected file into Emscripten's
+    // virtual filesystem. Validate it with the same hash check as disk ROMs.
+    if (fs::exists("/sm64-upload.z64") && is_rom_valid("/sm64-upload.z64")) {
+        return true;
+    }
+#endif
     if (scan_path_for_rom(fs_get_write_path(""))) { return true; }
     scan_path_for_rom(sys_exe_path_dir());
     return gRomIsValid;
