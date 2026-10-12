@@ -208,7 +208,7 @@ static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
 #ifdef __EMSCRIPTEN__
     // Browsers must return control to the event loop between frames.
     // The normal native while-loop cannot run synchronously on the web.
-    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, run_one_game_iter, 0, 1);
+    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, run_one_game_iter, 0, 0);
 #else
     run_one_game_iter();
 #endif
