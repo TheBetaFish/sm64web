@@ -68,7 +68,14 @@ static void (*m_scroll)(float, float) = NULL;
 #define IS_FULLSCREEN() ((SDL_GetWindowFlags(wnd) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0)
 
 static inline void gfx_sdl_set_vsync(const bool enabled) {
+#ifdef __EMSCRIPTEN__
+    // Emscripten implements swap interval through its main-loop timing API.
+    // This game uses its own loop, so calling SDL_GL_SetSwapInterval during
+    // window initialization aborts before the main loop exists.
+    (void)enabled;
+#else
     SDL_GL_SetSwapInterval(enabled);
+#endif
 }
 
 static void gfx_sdl_set_fullscreen(void) {
