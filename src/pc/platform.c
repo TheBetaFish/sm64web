@@ -295,6 +295,9 @@ static void sys_fatal_impl(const char *msg) {
 #else
 
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 const char *sys_user_path(void) {
     static char path[SYS_MAX_PATH] = { 0 };
@@ -384,10 +387,19 @@ const char *sys_exe_path_file(void) {
 }
 
 static void sys_fatal_impl(const char *msg) {
+#ifdef __EMSCRIPTEN__
+    // Browser builds cannot reliably display native SDL message boxes.
+    // Explicitly send fatal diagnostics to the browser console before exiting.
+    emscripten_log(EM_LOG_ERROR, "FATAL ERROR: %s", msg);
+    fprintf(stderr, "FATAL ERROR:\n%s\n", msg);
+    fflush(stderr);
+    exit(1);
+#else
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR , "Fatal error", msg, NULL);
     fprintf(stderr, "FATAL ERROR:\n%s\n", msg);
     fflush(stderr);
     exit(1);
+#endif
 }
 
 #endif
