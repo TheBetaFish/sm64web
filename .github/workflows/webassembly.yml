@@ -33,7 +33,7 @@ jobs:
           set -euxo pipefail
           curl -fsSL https://www.lua.org/ftp/lua-5.3.6.tar.gz -o /tmp/lua-5.3.6.tar.gz
           tar -xzf /tmp/lua-5.3.6.tar.gz -C /tmp
-          emmake make -C /tmp/lua-5.3.6/src generic CC=emcc AR=emar RANLIB=emranlib
+          emmake make -C /tmp/lua-5.3.6/src generic CC=emcc 'AR=emar rcs' RANLIB=emranlib
           mkdir -p lib/lua/emscripten
           cp /tmp/lua-5.3.6/src/liblua.a lib/lua/emscripten/liblua53.a
 
