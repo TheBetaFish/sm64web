@@ -89,6 +89,25 @@ jobs:
           cp build/us_pc/*.data site/ 2>/dev/null || true
           test -f site/sm64coopdx.html
           cp site/sm64coopdx.html site/index.html
+          cp web/rom-upload.js site/rom-upload.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          page = Path("site/index.html")
+          html = page.read_text()
+          # Load the picker before Emscripten's generated runtime script so it
+          # can register a preRun hook and pause startup until a ROM is selected.
+          html, count = re.subn(
+              r'(<script\\b[^>]*\\bsrc=["\\'][^"\\']+\\.js["\\'][^>]*>)',
+              r'<script src="rom-upload.js"></script>\\n\\1',
+              html,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Could not locate the Emscripten runtime script in index.html")
+          page.write_text(html)
+          PY
 
       - name: Upload Pages artifact
         if: success()
