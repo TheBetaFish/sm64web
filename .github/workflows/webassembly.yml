@@ -99,8 +99,8 @@ jobs:
           # Load the picker before Emscripten's generated runtime script so it
           # can register a preRun hook and pause startup until a ROM is selected.
           html, count = re.subn(
-              r'(<script\\b[^>]*\\bsrc=["\\'][^"\\']+\\.js["\\'][^>]*>)',
-              r'<script src="rom-upload.js"></script>\\n\\1',
+              r"""(<script\b[^>]*\bsrc=["'][^"']+\.js["'][^>]*>)""",
+              r"""<script src="rom-upload.js"></script>\n\1""",
               html,
               count=1,
           )
