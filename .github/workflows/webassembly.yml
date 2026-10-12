@@ -8,6 +8,12 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   webassembly:
@@ -69,3 +75,30 @@ jobs:
             build/us_pc/*.wasm
             build/us_pc/*.data
           if-no-files-found: error
+
+      - name: Prepare GitHub Pages site
+        if: success()
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p site
+          cp build/us_pc/*.html site/
+          cp build/us_pc/*.js build/us_pc/*.wasm site/
+          cp build/us_pc/*.data site/ 2>/dev/null || true
+          test -f site/sm64coopdx.html
+          cp site/sm64coopdx.html site/index.html
+
+      - name: Configure GitHub Pages
+        if: success()
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy GitHub Pages
+        if: success()
+        id: deployment
+        uses: actions/deploy-pages@v4
