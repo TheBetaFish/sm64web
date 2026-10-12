@@ -79,8 +79,33 @@ static bool is_rom_valid(const std::string romPath) {
 }
 
 inline static bool scan_path_for_rom(const char *dir) {
-    for (const auto &entry: std::filesystem::directory_iterator(dir)) {
-        std::string path = entry.path().generic_string();
+    // Browser builds may not have a native executable directory, and the
+    // browser's virtual filesystem may not contain the requested directory.
+    // Never let directory discovery throw an uncaught filesystem exception.
+    if (dir == nullptr || dir[0] == '\0') {
+        return false;
+    }
+
+    std::error_code ec;
+    fs::directory_iterator it(fs::path(dir), ec);
+    const fs::directory_iterator end;
+    if (ec) {
+        std::cerr << "ROM scan: cannot open directory '" << dir
+                  << "': " << ec.message() << std::endl;
+        return false;
+    }
+
+    for (; it != end; it.increment(ec)) {
+        if (ec) {
+            std::cerr << "ROM scan: directory iteration failed for '" << dir
+                      << "': " << ec.message() << std::endl;
+            return false;
+        }
+        std::error_code entryEc;
+        if (!it->is_regular_file(entryEc) || entryEc) {
+            continue;
+        }
+        std::string path = it->path().generic_string();
         if (path_ends_with(path.c_str(), ".z64")) {
             if (is_rom_valid(path)) { return true; }
         }
