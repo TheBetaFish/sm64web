@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
@@ -87,3 +89,14 @@ jobs:
           cp build/us_pc/*.data site/ 2>/dev/null || true
           test -f site/sm64coopdx.html
           cp site/sm64coopdx.html site/index.html
+
+      - name: Upload Pages artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        if: success()
+        id: deployment
+        uses: actions/deploy-pages@v4
