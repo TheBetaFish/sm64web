@@ -2,7 +2,7 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include <wininet.h>
-#else
+#elif !defined(__EMSCRIPTEN__)
 #include <curl/curl.h>
 #endif
 
@@ -45,7 +45,7 @@ void show_update_popup(void) {
     djui_popup_create(sVersionUpdateTextBuffer, 3);
 }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__EMSCRIPTEN__))
 typedef struct { char *str; size_t size; } Buffer;
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     size_t realsize = size * nmemb;
@@ -104,7 +104,10 @@ void parse_version(const char *data) {
 void get_version_remote(void) {
     sRemoteVersionStr[0] = '\0';
 
-#if defined(_WIN32)
+#if defined(__EMSCRIPTEN__)
+    // Browser builds do not use libcurl/WinINet; update checks are unavailable.
+    return;
+#elif defined(_WIN32)
     char buffer[0xFF] = { 0 };
 
     // initialize WinINet
@@ -173,7 +176,7 @@ void get_version_remote(void) {
     curl_easy_cleanup(curl);
 #endif
     parse_version(buffer);
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__EMSCRIPTEN__))
     free(buffer);
 #endif
 }
