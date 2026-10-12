@@ -175,9 +175,11 @@ void get_version_remote(void) {
     // Clean up
     curl_easy_cleanup(curl);
 #endif
+#if !defined(__EMSCRIPTEN__)
     parse_version(buffer);
-#if !(defined(_WIN32) || defined(_WIN64) || defined(__EMSCRIPTEN__))
+#if !(defined(_WIN32) || defined(_WIN64))
     free(buffer);
+#endif
 #endif
 }
 
