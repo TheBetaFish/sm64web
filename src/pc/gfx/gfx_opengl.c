@@ -566,9 +566,14 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
     if (!success) {
         GLint max_length = 0;
         glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &max_length);
-        char error_log[1024];
+        char error_log[1024] = { 0 };
+        if (max_length > (GLint)sizeof(error_log)) max_length = sizeof(error_log);
         fprintf(stderr, "Vertex shader compilation failed\n");
         glGetShaderInfoLog(vertex_shader, max_length, &max_length, &error_log[0]);
+        error_log[sizeof(error_log) - 1] = '\0';
+#ifdef __EMSCRIPTEN__
+        emscripten_log(EM_LOG_ERROR, "Vertex shader compilation failed: %s", error_log);
+#endif
         fprintf(stderr, "%s\n", &error_log[0]);
         sys_fatal("vertex shader compilation failed (see terminal)");
     }
@@ -580,9 +585,14 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
     if (!success) {
         GLint max_length = 0;
         glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &max_length);
-        char error_log[1024];
+        char error_log[1024] = { 0 };
+        if (max_length > (GLint)sizeof(error_log)) max_length = sizeof(error_log);
         fprintf(stderr, "Fragment shader compilation failed\n");
         glGetShaderInfoLog(fragment_shader, max_length, &max_length, &error_log[0]);
+        error_log[sizeof(error_log) - 1] = '\0';
+#ifdef __EMSCRIPTEN__
+        emscripten_log(EM_LOG_ERROR, "Fragment shader compilation failed: %s", error_log);
+#endif
         fprintf(stderr, "%s\n", &error_log[0]);
         sys_fatal("fragment shader compilation failed (see terminal)");
     }
