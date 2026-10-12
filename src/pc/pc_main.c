@@ -586,15 +586,21 @@ int main(int argc, char *argv[]) {
 
     // initialize sm64 data and controllers
 #ifdef __EMSCRIPTEN__
-    printf("WEB TRACE: entering game loop\n");
+    printf("WEB TRACE: calling thread5_game_loop\n");
 #endif
     thread5_game_loop(NULL);
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5_game_loop returned\n");
+#endif
 
     // Initialize the audio thread if possible.
     // init_thread_handle(&gAudioThread, audio_thread, NULL, NULL, 0);
 
     loading_screen_reset();
 
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: initializing DJUI\n");
+#endif
     // initialize djui
     djui_init();
     djui_unicode_init();
@@ -634,6 +640,9 @@ int main(int argc, char *argv[]) {
         network_init(NT_NONE, false);
     }
 
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: initializing browser main loop\n");
+#endif
     // main loop
 #ifdef __EMSCRIPTEN__
     // The browser loop is asynchronous and does not return when registered.
