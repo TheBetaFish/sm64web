@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 2>&1 | tee emscripten-build.log
+          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 EXTRA_CFLAGS=-sUSE_ZLIB=1 2>&1 | tee emscripten-build.log
 
       - name: Upload build log
         if: always()
