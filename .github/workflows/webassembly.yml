@@ -25,7 +25,7 @@ jobs:
       - name: Show toolchain
         run: |
           emcc --version
-          emmake --version
+          command -v emmake
 
       - name: Attempt browser build
         shell: bash
