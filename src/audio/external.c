@@ -2511,12 +2511,12 @@ void set_sequence_player_volume(s32 player, f32 volume) {
  */
 void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
 #ifdef __EMSCRIPTEN__
-    printf("WEB TRACE: play_music entered player=%u args=%u fade=%u\\n", player, seqArgs, fadeTimer);
-    printf("WEB TRACE: play_music locking audio mutex\\n");
+    fprintf(stderr, "WEB TRACE: play_music entered player=%u args=%u fade=%u\n", player, seqArgs, fadeTimer);
+    fprintf(stderr, "WEB TRACE: play_music locking audio mutex\n");
 #endif
     MUTEX_LOCK(gAudioThread);
 #ifdef __EMSCRIPTEN__
-    printf("WEB TRACE: play_music audio mutex locked\\n");
+    fprintf(stderr, "WEB TRACE: play_music audio mutex locked\n");
 #endif
 
     if (player >= SEQUENCE_PLAYERS) { return; }
@@ -2531,11 +2531,11 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
     // sequences. Just play them immediately, stopping any old sequence.
     if (player != SEQ_PLAYER_LEVEL) {
 #ifdef __EMSCRIPTEN__
-        printf("WEB TRACE: play_music calling seq_player_play_sequence player=%u seq=%u\\n", player, seqId);
+        fprintf(stderr, "WEB TRACE: play_music calling seq_player_play_sequence player=%u seq=%u\n", player, seqId);
 #endif
         seq_player_play_sequence(player, seqId, fadeTimer);
 #ifdef __EMSCRIPTEN__
-        printf("WEB TRACE: play_music seq_player_play_sequence returned\\n");
+        fprintf(stderr, "WEB TRACE: play_music seq_player_play_sequence returned\n");
 #endif
         return;
     }
