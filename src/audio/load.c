@@ -1289,8 +1289,8 @@ void func_sh_802f3ed4(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED void *vAddr, UNUS
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
 #ifdef __EMSCRIPTEN__
-    UNUSED bankId;
-    UNUSED arg1;
+    (void) bankId;
+    (void) arg1;
     return NULL;
 #endif
     UNUSED u32 pad1[4];
@@ -1328,9 +1328,9 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
 #ifndef VERSION_SH
 struct AudioBank *bank_load_async(s32 bankId, s32 arg1, struct SequencePlayer *seqPlayer) {
 #ifdef __EMSCRIPTEN__
-    UNUSED bankId;
-    UNUSED arg1;
-    UNUSED seqPlayer;
+    (void) bankId;
+    (void) arg1;
+    (void) seqPlayer;
     return NULL;
 #endif
     u32 numInstruments, numDrums;
@@ -1392,8 +1392,8 @@ struct AudioBank *bank_load_async(s32 bankId, s32 arg1, struct SequencePlayer *s
 #ifndef VERSION_SH
 void *sequence_dma_immediate(s32 seqId, s32 arg1) {
 #ifdef __EMSCRIPTEN__
-    UNUSED seqId;
-    UNUSED arg1;
+    (void) seqId;
+    (void) arg1;
     return NULL;
 #endif
     s32 seqLength;
@@ -1418,9 +1418,9 @@ void *sequence_dma_immediate(s32 seqId, s32 arg1) {
 #ifndef VERSION_SH
 void *sequence_dma_async(s32 seqId, s32 arg1, struct SequencePlayer *seqPlayer) {
 #ifdef __EMSCRIPTEN__
-    UNUSED seqId;
-    UNUSED arg1;
-    UNUSED seqPlayer;
+    (void) seqId;
+    (void) arg1;
+    (void) seqPlayer;
     return NULL;
 #endif
     s32 seqLength;
@@ -1516,7 +1516,7 @@ void set_sound_bank_override(s32 bank) {
 
 struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
 #ifdef __EMSCRIPTEN__
-    UNUSED seqId;
+    (void) seqId;
     if (arg1 != NULL) { *arg1 = 0; }
     fprintf(stderr, "WEB TRACE: browser build skipping bank load (silent audio)\n");
     return NULL;
@@ -1574,8 +1574,8 @@ struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
 #ifndef VERSION_SH
 void preload_sequence(u32 seqId, u8 preloadMask) {
 #ifdef __EMSCRIPTEN__
-    UNUSED seqId;
-    UNUSED preloadMask;
+    (void) seqId;
+    (void) preloadMask;
     fprintf(stderr, "WEB TRACE: browser build skipping sequence preload (silent audio)\n");
     return;
 #endif
