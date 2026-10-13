@@ -1619,6 +1619,14 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
 #endif
     UNUSED u32 padding[2];
 
+#ifdef __EMSCRIPTEN__
+    // Browser audio-bank patching currently crashes during startup. Keep gameplay
+    // running while the WebAssembly audio-bank path is investigated.
+    sequence_player_disable(seqPlayer);
+    fprintf(stderr, "WEB TRACE: browser build skipping sequence and bank loading (silent audio)\\n");
+    return;
+#endif
+
     // do custom music override
     {
         s32 bankId = 0;
