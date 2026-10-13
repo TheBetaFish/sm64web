@@ -1493,16 +1493,27 @@ struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
     u32 bankId = 0;
     u16 offset;
     u8 i;
-
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_banks_immediate entered seq=%d gAlBankSets=%p gSequenceCount=%u\\n", seqId, (void *) gAlBankSets, gSequenceCount);
+#endif
     offset = ((u16 *) gAlBankSets)[seqId];
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_banks_immediate bank-set offset=%u\\n", offset);
+#endif
 #ifdef VERSION_EU
     for (i = gAlBankSets[offset++]; i != 0; i--) {
         bankId = gAlBankSets[offset++];
 #else
     offset++;
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_banks_immediate bank count=%u\\n", gAlBankSets[offset - 1]);
+#endif
     for (i = gAlBankSets[offset - 1]; i != 0; i--) {
         offset++;
         bankId = gAlBankSets[offset - 1];
+#ifdef __EMSCRIPTEN__
+        fprintf(stderr, "WEB TRACE: load_banks_immediate loading bank=%u\\n", bankId);
+#endif
 #endif
 
         if (gOverrideBank > 0) {
