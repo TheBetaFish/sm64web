@@ -386,6 +386,10 @@ void *audio_thread(UNUSED void *arg) {
 
 void produce_one_frame(void) {
 #ifdef __EMSCRIPTEN__
+    // The native outer loop resets debug-context state before every frame.
+    // The asynchronous browser loop bypasses that outer loop, so reset here
+    // before any CTX_EXTENT instrumentation touches the context stack.
+    debug_context_reset();
     static bool traceFirstFrame = true;
     if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame callback entered\\n");
 #endif
