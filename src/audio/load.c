@@ -1565,17 +1565,36 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync);
 
 void load_sequence(u32 player, u32 seqId, s32 loadAsync) {
     u32 seqIdOverride = 0;
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence entered player=%u seq=%u async=%d\n", player, seqId, loadAsync);
+    fprintf(stderr, "WEB TRACE: load_sequence calling seq-load hooks\n");
+#endif
     if (smlua_call_event_hooks(HOOK_ON_SEQ_LOAD, player, seqId, loadAsync, &seqIdOverride)) {
+#ifdef __EMSCRIPTEN__
+        fprintf(stderr, "WEB TRACE: load_sequence hook changed seq to %u\n", seqIdOverride);
+#endif
         seqId = seqIdOverride;
     }
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence hooks returned seq=%u\n", seqId);
+#endif
 
     if (!loadAsync) {
         gAudioLoadLock = AUDIO_LOCK_LOADING;
     }
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence calling internal loader\n");
+#endif
     load_sequence_internal(player, seqId, loadAsync);
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence internal loader returned\n");
+#endif
     if (!loadAsync) {
         gAudioLoadLock = AUDIO_LOCK_NOT_LOADING;
     }
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence finished\n");
+#endif
 }
 #endif
 
@@ -1583,12 +1602,22 @@ void load_sequence(u32 player, u32 seqId, s32 loadAsync) {
 void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
     void *sequenceData;
     struct SequencePlayer *seqPlayer = &gSequencePlayers[player];
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence_internal entered player=%u seq=%u async=%d\n", player, seqId, loadAsync);
+    fprintf(stderr, "WEB TRACE: load_sequence_internal calling music override hook\n");
+#endif
     UNUSED u32 padding[2];
 
     // do custom music override
     {
         s32 bankId = 0;
+#ifdef __EMSCRIPTEN__
+        fprintf(stderr, "WEB TRACE: load_sequence_internal invoking music override\n");
+#endif
         if (smlua_audio_utils_override(seqId, &bankId, &sequenceData)) {
+#ifdef __EMSCRIPTEN__
+            fprintf(stderr, "WEB TRACE: load_sequence_internal music override handled sequence\n");
+#endif
             sequence_player_disable(seqPlayer);
             seqPlayer->defaultBank[0] = bankId;
 
@@ -1612,11 +1641,22 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
         }
     }
 
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence_internal music override returned\n");
+#endif
     if (seqId >= gSequenceCount) {
+#ifdef __EMSCRIPTEN__
+        fprintf(stderr, "WEB TRACE: load_sequence_internal sequence ID out of range count=%u\n", gSequenceCount);
+#endif
         return;
     }
-
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence_internal disabling sequence player\n");
+#endif
     sequence_player_disable(seqPlayer);
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: load_sequence_internal sequence player disabled\n");
+#endif
     if (loadAsync) {
         s32 numMissingBanks = 0;
         s32 dummy = 0;
