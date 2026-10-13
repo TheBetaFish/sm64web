@@ -2531,8 +2531,12 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
     // sequences. Just play them immediately, stopping any old sequence.
     if (player != SEQ_PLAYER_LEVEL) {
 #ifdef __EMSCRIPTEN__
-        fprintf(stderr, "WEB TRACE: play_music calling seq_player_play_sequence player=%u seq=%u\n", player, seqId);
+        fprintf(stderr, "WEB TRACE: play_music unlocking before seq_player_play_sequence player=%u seq=%u\n", player, seqId);
 #endif
+        // seq_player_play_sequence() acquires gAudioThread itself. Do not call
+        // it while holding the same mutex here, or browser builds can crash
+        // on the nested lock.
+        MUTEX_UNLOCK(gAudioThread);
         seq_player_play_sequence(player, seqId, fadeTimer);
 #ifdef __EMSCRIPTEN__
         fprintf(stderr, "WEB TRACE: play_music seq_player_play_sequence returned\n");
