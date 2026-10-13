@@ -197,12 +197,38 @@ f32 calculate_skybox_scaled_y(s8 player, UNUSED f32 fov) {
 Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
     u16 index = row * sSkyboxTileNumX + col;
     Vtx *verts;
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: make_skybox_rect row=%d col=%d index=%u skybox_verts=%p\n",
+            row, col, index, (void *) gBackgroundSkyboxVerts);
+    if (gBackgroundSkyboxVerts == NULL || ((uintptr_t) gBackgroundSkyboxVerts % 8) != 0) {
+        fprintf(stderr, "WEB TRACE WARNING: invalid skybox growing-array pointer=%p; skipping tile\n",
+                (void *) gBackgroundSkyboxVerts);
+        return NULL;
+    }
+    fprintf(stderr, "WEB TRACE: make_skybox_rect buffer=%p count=%u\n",
+            (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count);
+    if (gBackgroundSkyboxVerts->buffer == NULL ||
+        ((uintptr_t) gBackgroundSkyboxVerts->buffer % sizeof(void *)) != 0 ||
+        index >= gBackgroundSkyboxVerts->count) {
+        fprintf(stderr, "WEB TRACE WARNING: invalid skybox vertex buffer=%p count=%u index=%u; skipping tile\n",
+                (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count, index);
+        return NULL;
+    }
+#endif
     if (gRenderingInterpolated) {
         verts = gBackgroundSkyboxVerts->buffer[index];
     } else {
         verts = alloc_display_list(4 * sizeof(*verts));
         gBackgroundSkyboxVerts->buffer[index] = verts;
     }
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: make_skybox_rect allocated vertices=%p row=%d col=%d index=%u\n",
+            (void *) verts, row, col, index);
+    if (verts != NULL && ((uintptr_t) verts % 8) != 0) {
+        fprintf(stderr, "WEB TRACE WARNING: misaligned skybox vertices=%p; skipping tile\n", (void *) verts);
+        return NULL;
+    }
+#endif
 
     f32 x = tileCol * SKYBOX_TILE_WIDTH;
     f32 y = SKYBOX_HEIGHT - tileRow / SKYBOX_COLS * SKYBOX_TILE_HEIGHT;
@@ -392,6 +418,13 @@ Gfx *create_skybox_facing_camera(s8 player, s8 background, f32 fov,
                                     f32 focX, f32 focY, f32 focZ) {
     if (!gBackgroundSkyboxVerts) {
         gBackgroundSkyboxVerts = growing_array_init(NULL, sSkyboxTileNumY * sSkyboxTileNumX, malloc, free);
+#ifdef __EMSCRIPTEN__
+        fprintf(stderr, "WEB TRACE: created skybox vertex array=%p\n", (void *) gBackgroundSkyboxVerts);
+        if (gBackgroundSkyboxVerts == NULL || ((uintptr_t) gBackgroundSkyboxVerts % 8) != 0) {
+            fprintf(stderr, "WEB TRACE WARNING: could not allocate aligned skybox vertex array; skipping skybox\n");
+            return NULL;
+        }
+#endif
         gBackgroundSkyboxVerts->count = sSkyboxTileNumY * sSkyboxTileNumX;
         if (!gBackgroundSkyboxVerts) {
             sys_fatal("Cannot allocate skybox vertex buffer");
