@@ -110,19 +110,21 @@ jobs:
           # GitHub Pages can otherwise serve an older JS or Wasm file after a
           # deployment, triggering Emscripten's "No EM_ASM constant" assertion.
           version = __import__("os").environ.get("GITHUB_SHA", "dev")
-          html = re.sub(
-              r'(<script\\b[^>]*\\bsrc=["\\'][^"\\']+\\.js)(["\\'])',
+          html, script_count = re.subn(
+              r"(<script\b[^>]*\bsrc=['\"]sm64coopdx\.js)(['\"])",
               lambda m: m.group(1) + "?v=" + version + m.group(2),
               html,
               count=1,
           )
+          if script_count != 1:
+              raise SystemExit("Could not locate sm64coopdx.js script URL for cache-busting")
           js_path = Path("site/sm64coopdx.js")
           if not js_path.exists():
               raise SystemExit("Expected site/sm64coopdx.js was not produced")
           js = js_path.read_text()
           # Emscripten normally sets wasmBinaryFile to the sibling .wasm URL.
           js, wasm_count = re.subn(
-              r'(["\\'])sm64coopdx\\.wasm\\1',
+              r"(['\"])sm64coopdx\.wasm\1",
               lambda m: m.group(1) + "sm64coopdx.wasm?v=" + version + m.group(1),
               js,
               count=1,
