@@ -198,14 +198,18 @@ bool gfx_sdl_check_opengl_compatibility(void) {
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-static void gfx_sdl_browser_frame(void *callback) {
+// WebAssembly function-table indices are not linear-memory pointers. Keep the
+// C function pointer in a typed static variable instead of round-tripping it
+// through the void* argument used by emscripten_set_main_loop_arg.
+static void (*s_browser_game_iter)(void) = NULL;
+static void gfx_sdl_browser_frame(void *unused) {
+    (void)unused;
     static bool traceFirstBrowserCallback = true;
-    void (*run_one_game_iter)(void) = callback;
     if (traceFirstBrowserCallback) {
-        printf("WEB TRACE: SDL browser frame callback entered; callback=%p\\n", callback);
+        printf("WEB TRACE: SDL browser frame callback entered\\n");
         fflush(stdout);
     }
-    run_one_game_iter();
+    s_browser_game_iter();
     if (traceFirstBrowserCallback) {
         printf("WEB TRACE: SDL browser frame callback returned\\n");
         fflush(stdout);
@@ -217,8 +221,9 @@ static void gfx_sdl_browser_frame(void *callback) {
 static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
 #ifdef __EMSCRIPTEN__
     // Browsers must return control to the event loop between frames.
-    // The normal native while-loop cannot run synchronously on the web.
-    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, run_one_game_iter, 0, 1);
+    // Keep the C function pointer typed; do not pass it through void*.
+    s_browser_game_iter = run_one_game_iter;
+    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, NULL, 0, 1);
 #else
     run_one_game_iter();
 #endif
