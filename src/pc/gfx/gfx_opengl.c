@@ -1,5 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef __EMSCRIPTEN__
+#include <stdio.h>
+#endif
 
 #ifndef _LANGUAGE_C
 # define _LANGUAGE_C
@@ -126,6 +129,21 @@ static void gfx_opengl_load_shader(struct ShaderProgram *new_prg) {
     gfx_opengl_set_texture_uniforms(new_prg, 0);
     gfx_opengl_set_texture_uniforms(new_prg, 1);
 }
+
+#ifdef __EMSCRIPTEN__
+static void gfx_opengl_print_shader_source(const char *label, const char *source) {
+    unsigned line_number = 1;
+    const char *line = source;
+    fprintf(stderr, "----- %s (numbered source) -----\n", label);
+    while (*line != '\0') {
+        const char *end = line;
+        while (*end != '\0' && *end != '\n') end++;
+        fprintf(stderr, "%4u | %.*s\n", line_number++, (int)(end - line), line);
+        line = (*end == '\n') ? end + 1 : end;
+    }
+    fprintf(stderr, "----- end %s -----\n", label);
+}
+#endif
 
 static void append_str(char *buf, size_t *len, const char *str) {
     while (*str != '\0') buf[(*len)++] = *str++;
@@ -271,6 +289,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
     // Vertex shader
 #ifdef USE_GLES
     append_line(vs_buf, &vs_len, "#version 100");
+    append_line(vs_buf, &vs_len, "precision mediump float;");
 #else
     append_line(vs_buf, &vs_len, "#version 120");
 #endif
@@ -509,7 +528,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
 
         // exposure
         append_line(fs_buf, &fs_len, "if (uShaderFlags[4] == 1) {");
-        append_line(fs_buf, &fs_len, "texel.rgb = texel.rgb + (uShaderFlagValues[4] - 2) * texel.rgb + texel.rgb;");
+        append_line(fs_buf, &fs_len, "texel.rgb = texel.rgb + (uShaderFlagValues[4] - 2.0) * texel.rgb + texel.rgb;");
         append_line(fs_buf, &fs_len, "}");
 
         // dithering
@@ -519,7 +538,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
 
         // posterization
         append_line(fs_buf, &fs_len, "if (uShaderFlags[6] == 1) {");
-        append_line(fs_buf, &fs_len, "int levels = int(max(1.0, uShaderFlagValues[6]));");
+        append_line(fs_buf, &fs_len, "float levels = max(1.0, uShaderFlagValues[6]);");
         append_line(fs_buf, &fs_len, "texel.rgb = floor(texel.rgb * levels) / levels;");
         append_line(fs_buf, &fs_len, "}");
 
@@ -576,6 +595,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
         error_log[sizeof(error_log) - 1] = '\0';
 #ifdef __EMSCRIPTEN__
         emscripten_log(EM_LOG_ERROR, "Vertex shader compilation failed: %s", error_log);
+        gfx_opengl_print_shader_source("Vertex shader", vs_buf);
 #endif
         fprintf(stderr, "%s\n", &error_log[0]);
         sys_fatal("vertex shader compilation failed (see terminal)");
@@ -595,6 +615,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
         error_log[sizeof(error_log) - 1] = '\0';
 #ifdef __EMSCRIPTEN__
         emscripten_log(EM_LOG_ERROR, "Fragment shader compilation failed: %s", error_log);
+        gfx_opengl_print_shader_source("Fragment shader", fs_buf);
 #endif
         fprintf(stderr, "%s\n", &error_log[0]);
         sys_fatal("fragment shader compilation failed (see terminal)");
