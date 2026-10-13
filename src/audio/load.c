@@ -1038,6 +1038,10 @@ void patch_audio_bank(s32 bankId, struct AudioBank *mem, struct PatchStruct *pat
 #else
 void patch_audio_bank(struct AudioBank *mem, u8 *offset, u32 numInstruments, u32 numDrums) {
 #endif
+#ifdef __EMSCRIPTEN__
+    // Browser audio is intentionally silent; never patch absent bank data.
+    return;
+#endif
     struct Instrument *instrument;
 #if defined(VERSION_SH)
     void **itInstrs;
@@ -1284,6 +1288,11 @@ void func_sh_802f3ed4(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED void *vAddr, UNUS
 
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
+#ifdef __EMSCRIPTEN__
+    UNUSED bankId;
+    UNUSED arg1;
+    return NULL;
+#endif
     UNUSED u32 pad1[4];
     u32 buf[4];
     u32 numInstruments, numDrums;
@@ -1318,6 +1327,12 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
 
 #ifndef VERSION_SH
 struct AudioBank *bank_load_async(s32 bankId, s32 arg1, struct SequencePlayer *seqPlayer) {
+#ifdef __EMSCRIPTEN__
+    UNUSED bankId;
+    UNUSED arg1;
+    UNUSED seqPlayer;
+    return NULL;
+#endif
     u32 numInstruments, numDrums;
     UNUSED u32 pad1[2];
     u32 buf[4];
@@ -1376,6 +1391,11 @@ struct AudioBank *bank_load_async(s32 bankId, s32 arg1, struct SequencePlayer *s
 
 #ifndef VERSION_SH
 void *sequence_dma_immediate(s32 seqId, s32 arg1) {
+#ifdef __EMSCRIPTEN__
+    UNUSED seqId;
+    UNUSED arg1;
+    return NULL;
+#endif
     s32 seqLength;
     void *ptr;
     u8 *seqData;
@@ -1397,6 +1417,12 @@ void *sequence_dma_immediate(s32 seqId, s32 arg1) {
 
 #ifndef VERSION_SH
 void *sequence_dma_async(s32 seqId, s32 arg1, struct SequencePlayer *seqPlayer) {
+#ifdef __EMSCRIPTEN__
+    UNUSED seqId;
+    UNUSED arg1;
+    UNUSED seqPlayer;
+    return NULL;
+#endif
     s32 seqLength;
     void *ptr;
     u8 *seqData;
@@ -1489,6 +1515,12 @@ void set_sound_bank_override(s32 bank) {
 }
 
 struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
+#ifdef __EMSCRIPTEN__
+    UNUSED seqId;
+    if (arg1 != NULL) { *arg1 = 0; }
+    fprintf(stderr, "WEB TRACE: browser build skipping bank load (silent audio)\\n");
+    return NULL;
+#endif
     void *ret = NULL;
     u32 bankId = 0;
     u16 offset;
@@ -1541,6 +1573,12 @@ struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
 
 #ifndef VERSION_SH
 void preload_sequence(u32 seqId, u8 preloadMask) {
+#ifdef __EMSCRIPTEN__
+    UNUSED seqId;
+    UNUSED preloadMask;
+    fprintf(stderr, "WEB TRACE: browser build skipping sequence preload (silent audio)\\n");
+    return;
+#endif
     void *sequenceData;
     u8 temp;
 
@@ -1623,7 +1661,7 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
     // Browser audio-bank patching currently crashes during startup. Keep gameplay
     // running while the WebAssembly audio-bank path is investigated.
     sequence_player_disable(seqPlayer);
-    fprintf(stderr, "WEB TRACE: browser build skipping sequence and bank loading (silent audio)\\n");
+    fprintf(stderr, "WEB TRACE: browser build skipping sequence and bank loading (silent audio)\n");
     return;
 #endif
 
