@@ -2404,7 +2404,7 @@ GLOBAL_ASM("asm/non_matchings/sh/audio/seqplayer/sequence_player_process_sequenc
 void sequence_player_process_sequence(struct SequencePlayer *seqPlayer) {
 #ifdef __EMSCRIPTEN__
     // Sequence and bank data are not loaded in the browser's silent-audio build.
-    UNUSED seqPlayer;
+    (void) seqPlayer;
     return;
 #endif
     u8 cmd;
