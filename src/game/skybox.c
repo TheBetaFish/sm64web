@@ -200,16 +200,14 @@ Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: make_skybox_rect row=%d col=%d index=%u skybox_verts=%p\n",
             row, col, (unsigned) index, (void *) gBackgroundSkyboxVerts);
-    if (gBackgroundSkyboxVerts == NULL || ((uintptr_t) gBackgroundSkyboxVerts % 8) != 0) {
+    if (gBackgroundSkyboxVerts == NULL) {
         fprintf(stderr, "WEB TRACE WARNING: invalid skybox growing-array pointer=%p; skipping tile\n",
                 (void *) gBackgroundSkyboxVerts);
         return NULL;
     }
     fprintf(stderr, "WEB TRACE: make_skybox_rect buffer=%p count=%u\n",
             (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count);
-    if (gBackgroundSkyboxVerts->buffer == NULL ||
-        ((uintptr_t) gBackgroundSkyboxVerts->buffer % sizeof(void *)) != 0 ||
-        index >= gBackgroundSkyboxVerts->count) {
+    if (gBackgroundSkyboxVerts->buffer == NULL || index >= gBackgroundSkyboxVerts->count) {
         fprintf(stderr, "WEB TRACE WARNING: invalid skybox vertex buffer=%p count=%u index=%u; skipping tile\n",
                 (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count, (unsigned) index);
         return NULL;
@@ -224,10 +222,6 @@ Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: make_skybox_rect allocated vertices=%p row=%d col=%d index=%u\n",
             (void *) verts, row, col, (unsigned) index);
-    if (verts != NULL && ((uintptr_t) verts % 8) != 0) {
-        fprintf(stderr, "WEB TRACE WARNING: misaligned skybox vertices=%p; skipping tile\n", (void *) verts);
-        return NULL;
-    }
 #endif
 
     f32 x = tileCol * SKYBOX_TILE_WIDTH;
@@ -254,8 +248,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: skybox draw begin background=%d player=%d color=%d dlist_ptr=%p dlist=%p\n",
             background, player, colorIndex, (void *) dlist, dlist ? (void *) *dlist : NULL);
-    if (dlist == NULL || ((uintptr_t) dlist % sizeof(void *)) != 0 ||
-        *dlist == NULL || ((uintptr_t) *dlist % 8) != 0) {
+    if (dlist == NULL || *dlist == NULL) {
         fprintf(stderr, "WEB TRACE WARNING: skybox invalid display-list pointer; skipping skybox\n");
         return;
     }
@@ -292,7 +285,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
                 rawTextureTable = sSkyboxTextures[background];
                 fprintf(stderr, "WEB TRACE: skybox table entry slot=%p raw=%p background=%d tile=%d\n",
                         (void *) &sSkyboxTextures[background], rawTextureTable, background, tileIndex);
-                if (rawTextureTable == NULL || ((uintptr_t) rawTextureTable % sizeof(void *)) != 0) {
+                if (rawTextureTable == NULL) {
                     fprintf(stderr, "WEB TRACE WARNING: invalid skybox texture-table entry=%p background=%d tile=%d; skipping skybox\n",
                             rawTextureTable, background, tileIndex);
                     return;
@@ -300,7 +293,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
                 resolvedTextureTable = segmented_to_virtual(rawTextureTable);
                 fprintf(stderr, "WEB TRACE: skybox resolved texture table=%p raw=%p background=%d tile=%d\n",
                         resolvedTextureTable, rawTextureTable, background, tileIndex);
-                if (resolvedTextureTable == NULL || ((uintptr_t) resolvedTextureTable % sizeof(void *)) != 0) {
+                if (resolvedTextureTable == NULL) {
                     fprintf(stderr, "WEB TRACE WARNING: invalid resolved skybox texture table=%p background=%d tile=%d; skipping skybox\n",
                             resolvedTextureTable, background, tileIndex);
                     return;
@@ -314,7 +307,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
 #ifdef __EMSCRIPTEN__
             fprintf(stderr, "WEB TRACE: skybox texture pointer=%p background=%d tile=%d\n",
                     (void *) texture, background, tileIndex);
-            if (texture == NULL || ((uintptr_t) texture % 8) != 0) {
+            if (texture == NULL) {
                 fprintf(stderr, "WEB TRACE WARNING: invalid skybox texture=%p background=%d tile=%d; skipping skybox\n",
                         (void *) texture, background, tileIndex);
                 return;
@@ -331,8 +324,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
 #ifdef __EMSCRIPTEN__
             fprintf(stderr, "WEB TRACE: skybox vertices=%p dlist_after_env=%p background=%d tile=%d\n",
                     (void *) vertices, (void *) *dlist, background, tileIndex);
-            if (vertices == NULL || ((uintptr_t) vertices % 8) != 0 ||
-                *dlist == NULL || ((uintptr_t) *dlist % 8) != 0) {
+            if (vertices == NULL || *dlist == NULL) {
                 fprintf(stderr, "WEB TRACE WARNING: invalid skybox vertex/display-list pointer vertices=%p dlist=%p background=%d tile=%d; skipping skybox\n",
                         (void *) vertices, (void *) *dlist, background, tileIndex);
                 return;
@@ -399,6 +391,7 @@ Gfx *init_skybox_display_list(s8 player, s8 background, s8 colorIndex) {
         gSPDisplayList(dlist++, dl_skybox_end);
         gSPEndDisplayList(dlist);
     }
+    fprintf(stderr, "WEB TRACE: after init_skybox_display_list gDisplayListHead=%p mod8=%lu skybox=%p\n", (void *) gDisplayListHead, (unsigned long)((uintptr_t) gDisplayListHead % 8), (void *) skybox);
     return skybox;
 }
 
@@ -420,7 +413,7 @@ Gfx *create_skybox_facing_camera(s8 player, s8 background, f32 fov,
         gBackgroundSkyboxVerts = growing_array_init(NULL, sSkyboxTileNumY * sSkyboxTileNumX, malloc, free);
 #ifdef __EMSCRIPTEN__
         fprintf(stderr, "WEB TRACE: created skybox vertex array=%p\n", (void *) gBackgroundSkyboxVerts);
-        if (gBackgroundSkyboxVerts == NULL || ((uintptr_t) gBackgroundSkyboxVerts % 8) != 0) {
+        if (gBackgroundSkyboxVerts == NULL) {
             fprintf(stderr, "WEB TRACE WARNING: could not allocate aligned skybox vertex array; skipping skybox\n");
             return NULL;
         }
