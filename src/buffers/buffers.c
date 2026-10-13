@@ -26,7 +26,11 @@ ALIGNED8 u8 gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE] = { 0 };
 // 0x200 bytes
 ALIGNED8 struct SaveBuffer gSaveBuffer = { 0 };
 // 0x190a0 bytes
+#ifdef __EMSCRIPTEN__
+struct GfxPool gGfxPools[GFX_NUM_POOLS] __attribute__((aligned(8))) = { 0 };
+#else
 struct GfxPool gGfxPools[GFX_NUM_POOLS] = { 0 };
+#endif
 
 
 // Yield buffer for audio, 0x400 bytes. Stubbed out post-JP since the audio
