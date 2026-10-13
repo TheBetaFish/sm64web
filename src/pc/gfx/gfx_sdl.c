@@ -199,8 +199,18 @@ bool gfx_sdl_check_opengl_compatibility(void) {
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 static void gfx_sdl_browser_frame(void *callback) {
+    static bool traceFirstBrowserCallback = true;
     void (*run_one_game_iter)(void) = callback;
+    if (traceFirstBrowserCallback) {
+        printf("WEB TRACE: SDL browser frame callback entered; callback=%p\\n", callback);
+        fflush(stdout);
+    }
     run_one_game_iter();
+    if (traceFirstBrowserCallback) {
+        printf("WEB TRACE: SDL browser frame callback returned\\n");
+        fflush(stdout);
+        traceFirstBrowserCallback = false;
+    }
 }
 #endif
 
