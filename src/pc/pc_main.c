@@ -391,26 +391,26 @@ void produce_one_frame(void) {
     // before any CTX_EXTENT instrumentation touches the context stack.
     debug_context_reset();
     static bool traceFirstFrame = true;
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame callback entered\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame callback entered\n");
 #endif
     CTX_EXTENT(CTX_NETWORK, network_update);
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame network update done\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame network update done\n");
 #endif
 
     CTX_EXTENT(CTX_INTERP, patch_interpolations_before);
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame interpolation setup done\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame interpolation setup done\n");
 #endif
 
     CTX_EXTENT(CTX_GAME_LOOP, game_loop_one_iteration);
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame game update done\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame game update done\n");
 #endif
 
     CTX_EXTENT(CTX_SMLUA, smlua_update);
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame Lua update done\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame Lua update done\n");
 #endif
 
     // If we aren't threaded
@@ -418,12 +418,12 @@ void produce_one_frame(void) {
         CTX_EXTENT(CTX_AUDIO, buffer_audio);
     }
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame audio step done\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame audio step done\n");
 #endif
 
     CTX_EXTENT(CTX_RENDER, produce_interpolation_frames_and_delay);
 #ifdef __EMSCRIPTEN__
-    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: first frame rendered\\n");
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: first frame rendered\n");
     traceFirstFrame = false;
 #endif
 }
