@@ -11,6 +11,10 @@ struct addrinfo *result, *i;
 
 char gGetHostName[MAX_CONFIG_STRING] = "";
 
+#ifdef __EMSCRIPTEN__
+static bool sWebSoloMode = false;
+#endif
+
 // Resolves a hostname to an IP address. Current limitation: It still only gets the first address it sees and returns.
 // getaddrinfo() is smart enough to prioritize IPv4 if the user is not in an IPv6 enabled network, so this shouldn't be a problem for now.
 // TODO: Store all found addresses somewhere and make the game try to connect to each of them if one fails.
@@ -135,6 +139,16 @@ static int socket_receive(SOCKET socket, struct sockaddr_in6* rxAddr, u8* buffer
 }
 
 static bool ns_socket_initialize(enum NetworkType networkType, UNUSED bool reconnecting) {
+#ifdef __EMSCRIPTEN__
+    // Browsers cannot open the native UDP socket used by CoopDX. A one-player
+    // server still gets normal game/session initialization, without transport.
+    if (networkType == NT_SERVER) {
+        sWebSoloMode = true;
+        LOG_INFO("initialized browser solo session (network transport disabled)");
+        return true;
+    }
+    sWebSoloMode = false;
+#endif
     // sanity check port
     unsigned int port = (networkType == NT_CLIENT) ? configJoinPort : configHostPort;
     if (port == 0) { port = DEFAULT_PORT; }
@@ -230,6 +244,9 @@ static bool ns_socket_match_addr(void* addr1, void* addr2) {
 }
 
 static void ns_socket_update(void) {
+#ifdef __EMSCRIPTEN__
+    if (sWebSoloMode) { return; }
+#endif
     if (gNetworkType == NT_NONE) { return; }
     do {
         // receive packet
@@ -244,6 +261,9 @@ static void ns_socket_update(void) {
 }
 
 static int ns_socket_send(u8 localIndex, void* address, u8* data, u16 dataLength) {
+#ifdef __EMSCRIPTEN__
+    if (sWebSoloMode) { return NO_ERROR; }
+#endif
     if (localIndex != 0) {
         if (gNetworkType == NT_SERVER && gNetworkPlayers[localIndex].type != NPT_CLIENT) { return SOCKET_ERROR; }
         if (gNetworkType == NT_CLIENT && gNetworkPlayers[localIndex].type != NPT_SERVER) { return SOCKET_ERROR; }
@@ -268,6 +288,15 @@ static void ns_socket_get_lobby_secret(char* destination, u32 destLength) {
 }
 
 static void ns_socket_shutdown(UNUSED bool reconnecting) {
+#ifdef __EMSCRIPTEN__
+    if (sWebSoloMode) {
+        sWebSoloMode = false;
+        sCurSocket = INVALID_SOCKET;
+        memset(sAddr, 0, sizeof(sAddr));
+        LOG_INFO("browser solo session shutdown");
+        return;
+    }
+#endif
     socket_shutdown(sCurSocket);
     sCurSocket = INVALID_SOCKET;
     for (u16 i = 0; i < MAX_PLAYERS; i++) {

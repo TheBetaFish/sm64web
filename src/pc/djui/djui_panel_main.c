@@ -7,6 +7,7 @@
 #include "djui_panel_confirm.h"
 #include "pc/controller/controller_sdl.h"
 #include "pc/pc_main.h"
+#include "pc/network/network.h"
 #include "pc/update_checker.h"
 
 extern ALIGNED8 u8 texture_coopdx_logo[];
@@ -23,6 +24,18 @@ static void djui_panel_main_quit(struct DjuiBase* caller) {
                               DLANG(MAIN, QUIT_CONFIRM),
                               djui_panel_main_quit_yes);
 }
+
+#ifdef __EMSCRIPTEN__
+static void djui_panel_main_play_solo(UNUSED struct DjuiBase* caller) {
+    // The browser build has no usable UDP sockets. Start a one-player local
+    // server session; socket.c provides a no-network transport for this mode.
+    configAmountOfPlayers = 1;
+    configNetworkSystem = NS_SOCKET;
+    network_reset_reconnect_and_rehost();
+    extern void djui_panel_do_host(bool reconnecting, bool playSound);
+    djui_panel_do_host(false, true);
+}
+#endif
 
 void djui_panel_main_create(struct DjuiBase* caller) {
     struct DjuiThreePanel* panel = djui_panel_menu_create(configExCoopTheme ? "\\#ff0800\\SM\\#1be700\\64\\#00b3ff\\EX\n\\#ffef00\\COOP" : "", false);
@@ -41,16 +54,25 @@ void djui_panel_main_create(struct DjuiBase* caller) {
                 djui_base_set_location(&logo->base, 0, -30);
             }
 
+#ifdef __EMSCRIPTEN__
+            struct DjuiButton* button1 = djui_button_create(body, "Play Solo", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_play_solo);
+            if (!configExCoopTheme) { djui_base_set_location(&button1->base, 0, -30); }
+            djui_cursor_input_controlled_center(&button1->base);
+            struct DjuiButton* button3 = djui_button_create(body, DLANG(MAIN, OPTIONS), DJUI_BUTTON_STYLE_NORMAL, djui_panel_options_create);
+            if (!configExCoopTheme) { djui_base_set_location(&button3->base, 0, -30); }
+            struct DjuiButton* button4 = djui_button_create(body, DLANG(MAIN, QUIT), DJUI_BUTTON_STYLE_BACK, djui_panel_main_quit);
+            if (!configExCoopTheme) { djui_base_set_location(&button4->base, 0, -30); }
+#else
             struct DjuiButton* button1 = djui_button_create(body, DLANG(MAIN, HOST), DJUI_BUTTON_STYLE_NORMAL, djui_panel_host_create);
             if (!configExCoopTheme) { djui_base_set_location(&button1->base, 0, -30); }
             djui_cursor_input_controlled_center(&button1->base);
-
             struct DjuiButton* button2 = djui_button_create(body, DLANG(MAIN, JOIN), DJUI_BUTTON_STYLE_NORMAL, djui_panel_join_create);
             if (!configExCoopTheme) { djui_base_set_location(&button2->base, 0, -30); }
             struct DjuiButton* button3 = djui_button_create(body, DLANG(MAIN, OPTIONS), DJUI_BUTTON_STYLE_NORMAL, djui_panel_options_create);
             if (!configExCoopTheme) { djui_base_set_location(&button3->base, 0, -30); }
             struct DjuiButton* button4 = djui_button_create(body, DLANG(MAIN, QUIT), DJUI_BUTTON_STYLE_BACK, djui_panel_main_quit);
             if (!configExCoopTheme) { djui_base_set_location(&button4->base, 0, -30); }
+#endif
         }
 
         // these two cannot co-exist for some reason
