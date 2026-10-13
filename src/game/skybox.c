@@ -199,7 +199,7 @@ Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
     Vtx *verts;
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: make_skybox_rect row=%d col=%d index=%u skybox_verts=%p\n",
-            row, col, index, (void *) gBackgroundSkyboxVerts);
+            row, col, (unsigned) index, (void *) gBackgroundSkyboxVerts);
     if (gBackgroundSkyboxVerts == NULL || ((uintptr_t) gBackgroundSkyboxVerts % 8) != 0) {
         fprintf(stderr, "WEB TRACE WARNING: invalid skybox growing-array pointer=%p; skipping tile\n",
                 (void *) gBackgroundSkyboxVerts);
@@ -211,7 +211,7 @@ Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
         ((uintptr_t) gBackgroundSkyboxVerts->buffer % sizeof(void *)) != 0 ||
         index >= gBackgroundSkyboxVerts->count) {
         fprintf(stderr, "WEB TRACE WARNING: invalid skybox vertex buffer=%p count=%u index=%u; skipping tile\n",
-                (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count, index);
+                (void *) gBackgroundSkyboxVerts->buffer, gBackgroundSkyboxVerts->count, (unsigned) index);
         return NULL;
     }
 #endif
@@ -223,7 +223,7 @@ Vtx *make_skybox_rect(s32 tileRow, s32 tileCol, s32 row, s32 col) {
     }
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: make_skybox_rect allocated vertices=%p row=%d col=%d index=%u\n",
-            (void *) verts, row, col, index);
+            (void *) verts, row, col, (unsigned) index);
     if (verts != NULL && ((uintptr_t) verts % 8) != 0) {
         fprintf(stderr, "WEB TRACE WARNING: misaligned skybox vertices=%p; skipping tile\n", (void *) verts);
         return NULL;
