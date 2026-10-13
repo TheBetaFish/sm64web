@@ -579,22 +579,48 @@ static struct LevelCommand *levelCommandAddr;
 // main game loop thread. runs forever as long as the game
 // continues.
 void thread5_game_loop(UNUSED void *arg) {
-
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 setup_game_memory begin\\n");
+#endif
     setup_game_memory();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 setup_game_memory done\\n");
+    printf("WEB TRACE: thread5 init rumble queue\\n");
+#endif
     init_rumble_pak_scheduler_queue();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 init controllers\\n");
+#endif
     init_controllers();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 create thread 6\\n");
+#endif
     create_thread_6();
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 load save files\\n");
+#endif
     save_file_load_all(FALSE);
-
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 set vblank handler\\n");
+#endif
     set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (OSMesg) 1);
-
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 resolve level script\\n");
+#endif
     // point levelCommandAddr to the entry point into the level script data.
     levelCommandAddr = segmented_to_virtual(level_script_entry);
-
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 play startup music\\n");
+#endif
     play_music(SEQ_PLAYER_SFX, SEQUENCE_ARGS(0, SEQ_SOUND_PLAYER), 0);
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 set sound mode\\n");
+#endif
     set_sound_mode(save_file_get_sound_mode());
-
     gGlobalTimer++;
+#ifdef __EMSCRIPTEN__
+    printf("WEB TRACE: thread5 initialization done\\n");
+#endif
 }
 
 void game_loop_one_iteration(void) {
