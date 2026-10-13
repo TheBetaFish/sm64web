@@ -331,6 +331,11 @@ void produce_interpolation_frames_and_delay(void) {
 static s16 sAudioBuffer[SAMPLES_HIGH * 2 * 2] = { 0 };
 
 inline static void buffer_audio(void) {
+#ifdef __EMSCRIPTEN__
+    // Audio-bank loading is currently bypassed in the browser build. Do not
+    // run the mixer against uninitialized sequence/bank state.
+    return;
+#endif
     bool shouldMute = (configMuteFocusLoss && !gWindowApi->has_focus()) || (gMasterVolume == 0);
     if (!shouldMute) {
         set_sequence_player_volume(SEQ_PLAYER_LEVEL, (f32)configMusicVolume / 127.0f * (f32)gLuaVolumeLevel / 127.0f);
@@ -380,20 +385,43 @@ void *audio_thread(UNUSED void *arg) {
 }
 
 void produce_one_frame(void) {
+#ifdef __EMSCRIPTEN__
+    static bool traceFirstFrame = true;
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame callback entered\\n");
+#endif
     CTX_EXTENT(CTX_NETWORK, network_update);
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame network update done\\n");
+#endif
 
     CTX_EXTENT(CTX_INTERP, patch_interpolations_before);
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame interpolation setup done\\n");
+#endif
 
     CTX_EXTENT(CTX_GAME_LOOP, game_loop_one_iteration);
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame game update done\\n");
+#endif
 
     CTX_EXTENT(CTX_SMLUA, smlua_update);
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame Lua update done\\n");
+#endif
 
     // If we aren't threaded
     if (gAudioThread.state == INVALID) {
         CTX_EXTENT(CTX_AUDIO, buffer_audio);
     }
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: frame audio step done\\n");
+#endif
 
     CTX_EXTENT(CTX_RENDER, produce_interpolation_frames_and_delay);
+#ifdef __EMSCRIPTEN__
+    if (traceFirstFrame) fprintf(stderr, "WEB TRACE: first frame rendered\\n");
+    traceFirstFrame = false;
+#endif
 }
 
 // used for rendering 2D scenes fullscreen like the loading or crash screens
