@@ -1,5 +1,8 @@
 #include <PR/ultratypes.h>
 #include <string.h>
+#ifdef __EMSCRIPTEN__
+#include <stdint.h>
+#endif
 
 #include "memory.h"
 #include "print.h"
@@ -122,13 +125,23 @@ struct GrowingPool* growing_pool_init(struct GrowingPool* pool, u32 nodeSize) {
 void* growing_pool_alloc(struct GrowingPool *pool, u32 size) {
     if (!pool) { return NULL; }
 
-    // maintain alignment
+    // Maintain platform alignment; WebAssembly display-list entries need 8-byte alignment.
+#ifdef __EMSCRIPTEN__
+    size = ALIGN_UP(size, 8);
+#else
     size = ALIGN_UP(size, sizeof(void*));
+#endif
 
     // check if it's too big for a node
     if (size >= pool->nodeSize) {
         // create a node just for this
-        size_t header = ALIGN_UP(sizeof(struct GrowingPoolNode), sizeof(void*));
+        size_t header = ALIGN_UP(sizeof(struct GrowingPoolNode),
+#ifdef __EMSCRIPTEN__
+                                  8
+#else
+                                  sizeof(void*)
+#endif
+        );
         struct GrowingPoolNode* node = malloc(header + size);
         if (!node) { return NULL; }
         node->ptr = (u8*) node + header;
@@ -160,7 +173,13 @@ void* growing_pool_alloc(struct GrowingPool *pool, u32 size) {
 
     // allocate new node
     if (!node) {
-        size_t header = ALIGN_UP(sizeof(struct GrowingPoolNode), sizeof(void*));
+        size_t header = ALIGN_UP(sizeof(struct GrowingPoolNode),
+#ifdef __EMSCRIPTEN__
+                                  8
+#else
+                                  sizeof(void*)
+#endif
+        );
         node = malloc(header + pool->nodeSize);
         if (!node) { return NULL; }
         node->usedSpace = 0;
@@ -171,6 +190,10 @@ void* growing_pool_alloc(struct GrowingPool *pool, u32 size) {
 
     // retrieve pointer
     void* ptr = ((u8*)node->ptr + node->usedSpace);
+#ifdef __EMSCRIPTEN__
+    ptr = (void *) ALIGN_UP((uintptr_t) ptr, 8);
+    node->usedSpace = (u32)((u8 *)ptr - (u8 *)node->ptr);
+#endif
     memset(ptr, 0, size);
     node->usedSpace += size;
     pool->usedSpace += size;
