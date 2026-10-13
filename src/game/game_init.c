@@ -1,4 +1,8 @@
 #include <ultra64.h>
+#ifdef __EMSCRIPTEN__
+#include <stdio.h>
+#include <stdint.h>
+#endif
 
 #include "sm64.h"
 #include "gfx_dimensions.h"
@@ -288,6 +292,9 @@ void config_gfx_pool(void) {
     gGfxSPTask = &gGfxPool->spTask;
     gDisplayListHead = gGfxPool->buffer;
     gGfxPoolEnd = (u8 *) (gGfxPool->buffer + GFX_POOL_SIZE);
+#ifdef __EMSCRIPTEN__
+    { static unsigned webFrameTraceCount = 0; if (webFrameTraceCount < 5) { fprintf(stderr, "WEB TRACE: frame %u gDisplayListHead=%p mod8=%lu gGfxPool=%p buffer=%p\n", webFrameTraceCount + 1, (void *)gDisplayListHead, (unsigned long)((uintptr_t)gDisplayListHead % 8), (void *)gGfxPool, (void *)gGfxPool->buffer); ++webFrameTraceCount; } }
+#endif
     alloc_display_list_reset();
 }
 
