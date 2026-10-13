@@ -1778,7 +1778,13 @@ static void update_game_sound(void) {
  * Called from threads: thread4_sound, thread5_game_loop
  */
 static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: seq_player_play_sequence entered player=%u seq=%u arg=%u\n", player, seqId, arg2);
+#endif
     MUTEX_LOCK(gAudioThread);
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: seq_player_play_sequence mutex locked\n");
+#endif
 
     if (player >= SEQUENCE_PLAYERS) { return; }
     u8 targetVolume;
@@ -1808,7 +1814,13 @@ static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 #else
 
     gSequencePlayers[player].seqVariation = seqId & SEQ_VARIATION;
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: seq_player_play_sequence calling load_sequence player=%u seq=%u\n", player, seqId & SEQ_BASE_ID);
+#endif
     load_sequence(player, seqId & SEQ_BASE_ID, 0);
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: seq_player_play_sequence load_sequence returned\n");
+#endif
 
     if (player == SEQ_PLAYER_LEVEL) {
         targetVolume = begin_background_music_fade(0);
@@ -1822,6 +1834,9 @@ static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 #endif
 
     MUTEX_UNLOCK(gAudioThread);
+#ifdef __EMSCRIPTEN__
+    fprintf(stderr, "WEB TRACE: seq_player_play_sequence finished\n");
+#endif
 }
 
 /**
