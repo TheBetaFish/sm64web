@@ -1780,9 +1780,9 @@ static void update_game_sound(void) {
 static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 #ifdef __EMSCRIPTEN__
     // No sequence data is loaded in the browser's silent-audio build.
-    UNUSED player;
-    UNUSED seqId;
-    UNUSED arg2;
+    (void) player;
+    (void) seqId;
+    (void) arg2;
     return;
 #endif
 #ifdef __EMSCRIPTEN__
