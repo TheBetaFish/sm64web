@@ -223,7 +223,7 @@ static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
     // Browsers must return control to the event loop between frames.
     // Keep the C function pointer typed; do not pass it through void*.
     s_browser_game_iter = run_one_game_iter;
-    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, NULL, 0, 1);
+    emscripten_set_main_loop_arg(gfx_sdl_browser_frame, NULL, 30, 1);
 #else
     run_one_game_iter();
 #endif
