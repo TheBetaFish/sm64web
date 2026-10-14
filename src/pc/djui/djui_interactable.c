@@ -222,8 +222,15 @@ bool djui_interactable_on_key_down(int scancode) {
         }
     }
 
+    if (scancode == SCANCODE_ESCAPE && !gDjuiInMainMenu
+        && !gDjuiPanelPauseCreated && !djui_panel_is_active()) {
+        // Escape opens the game's native pause panel during solo gameplay.
+        djui_panel_pause_create(NULL);
+        return true;
+    }
+
     if (scancode == SCANCODE_ESCAPE && djui_panel_is_active()) {
-        // pressed escape button on keyboard
+        // Escape backs out of a submenu or closes the pause panel.
         djui_panel_back();
         return true;
     }

@@ -99,14 +99,14 @@ bool         configFadeoutDistantSounds           = false;
 bool         configMuteFocusLoss                  = false;
 unsigned int configSoundOutput                    = 0; // 0 = Stereo, 1 = Mono, 2 = Headset
 // control binds
-static const unsigned int defaultConfigKeyA[MAX_BINDS]          = { 0x0026,     0x1000,     0x1103     };
-static const unsigned int defaultConfigKeyB[MAX_BINDS]          = { 0x0033,     0x1001,     0x1101     };
+static const unsigned int defaultConfigKeyA[MAX_BINDS]          = { 0x0039,     0x1000,     VK_INVALID };
+static const unsigned int defaultConfigKeyB[MAX_BINDS]          = { VK_INVALID, 0x1001,     0x1101     };
 static const unsigned int defaultConfigKeyX[MAX_BINDS]          = { 0x0017,     0x1002,     VK_INVALID };
 static const unsigned int defaultConfigKeyY[MAX_BINDS]          = { 0x0032,     0x1003,     VK_INVALID };
 static const unsigned int defaultConfigKeyStart[MAX_BINDS]      = { 0x0039,     0x1006,     VK_INVALID };
 static const unsigned int defaultConfigKeyL[MAX_BINDS]          = { 0x002A,     0x1009,     0x1104     };
 static const unsigned int defaultConfigKeyR[MAX_BINDS]          = { 0x0036,     0x100A,     0x101B     };
-static const unsigned int defaultConfigKeyZ[MAX_BINDS]          = { 0x0025,     0x1007,     0x101A     };
+static const unsigned int defaultConfigKeyZ[MAX_BINDS]          = { 0x001D,     0x1007,     VK_INVALID };
 static const unsigned int defaultConfigKeyCUp[MAX_BINDS]        = { 0x0148,     VK_INVALID, VK_INVALID };
 static const unsigned int defaultConfigKeyCDown[MAX_BINDS]      = { 0x0150,     VK_INVALID, VK_INVALID };
 static const unsigned int defaultConfigKeyCLeft[MAX_BINDS]      = { 0x014B,     VK_INVALID, VK_INVALID };
@@ -126,14 +126,14 @@ static const unsigned int defaultConfigKeyPrevPage[MAX_BINDS]   = { 0x0016,     
 static const unsigned int defaultConfigKeyNextPage[MAX_BINDS]   = { 0x0018,     VK_INVALID, VK_INVALID };
 static const unsigned int defaultConfigKeyDisconnect[MAX_BINDS] = { 0x0058,     VK_INVALID, VK_INVALID };
 
-unsigned int configKeyA[MAX_BINDS]                = { 0x0026,     0x1000,     0x1103     };
-unsigned int configKeyB[MAX_BINDS]                = { 0x0033,     0x1001,     0x1101     };
+unsigned int configKeyA[MAX_BINDS]                = { 0x0039,     0x1000,     VK_INVALID };
+unsigned int configKeyB[MAX_BINDS]                = { VK_INVALID, 0x1001,     0x1101     };
 unsigned int configKeyX[MAX_BINDS]                = { 0x0017,     0x1002,     VK_INVALID };
 unsigned int configKeyY[MAX_BINDS]                = { 0x0032,     0x1003,     VK_INVALID };
 unsigned int configKeyStart[MAX_BINDS]            = { 0x0039,     0x1006,     VK_INVALID };
 unsigned int configKeyL[MAX_BINDS]                = { 0x002A,     0x1009,     0x1104     };
 unsigned int configKeyR[MAX_BINDS]                = { 0x0036,     0x100A,     0x101B     };
-unsigned int configKeyZ[MAX_BINDS]                = { 0x0025,     0x1007,     0x101A     };
+unsigned int configKeyZ[MAX_BINDS]                = { 0x001D,     0x1007,     VK_INVALID };
 unsigned int configKeyCUp[MAX_BINDS]              = { 0x0148,     VK_INVALID, VK_INVALID };
 unsigned int configKeyCDown[MAX_BINDS]            = { 0x0150,     VK_INVALID, VK_INVALID };
 unsigned int configKeyCLeft[MAX_BINDS]            = { 0x014B,     VK_INVALID, VK_INVALID };
@@ -161,17 +161,17 @@ bool         configDisableGamepads                = false;
 bool         configUseStandardKeyBindingsChat     = false;
 bool         configSmoothScrolling                = false;
 // free camera settings
-bool         configEnableFreeCamera               = false;
+bool         configEnableFreeCamera               = true;
 bool         configFreeCameraAnalog               = false;
 bool         configFreeCameraLCentering           = false;
 bool         configFreeCameraDPadBehavior         = false;
 bool         configFreeCameraHasCollision         = true;
-bool         configFreeCameraMouse                = false;
+bool         configFreeCameraMouse                = true;
 unsigned int configFreeCameraXSens                = 50;
 unsigned int configFreeCameraYSens                = 50;
 unsigned int configFreeCameraAggr                 = 0;
 unsigned int configFreeCameraPan                  = 0;
-unsigned int configFreeCameraDegrade              = 50; // 0 - 100%
+unsigned int configFreeCameraDegrade              = 20; // lower deceleration gives the camera a smoother, less abrupt stop
 // romhack camera settings
 unsigned int configEnableRomhackCamera            = 0; // 0 for automatic, 1 for force on, 2 for force off
 bool         configRomhackCameraBowserFights      = false;
@@ -812,6 +812,21 @@ NEXT_OPTION:
     }
 
     fs_close(file);
+
+#ifdef __EMSCRIPTEN__
+    // Migrate the old untouched defaults once, while preserving user-customized binds.
+    if (configKeyA[0] == 0x0026 && configKeyB[0] == 0x0033 && configKeyZ[0] == 0x0025) {
+        configKeyA[0] = 0x0039; // Space: jump
+        configKeyA[2] = VK_INVALID;
+        configKeyB[0] = VK_INVALID;
+        configKeyB[2] = 0x1101; // Left mouse button: punch
+        configKeyZ[0] = 0x001D; // Left Ctrl: crouch
+        configKeyZ[2] = VK_INVALID;
+        configEnableFreeCamera = true;
+        configFreeCameraMouse = true;
+        configFreeCameraDegrade = 20;
+    }
+#endif
 
     if (configGraphicsBackend < GAPI_GL || configGraphicsBackend > GAPI_MAX) { configGraphicsBackend = GAPI_GL; }
 
