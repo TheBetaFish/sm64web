@@ -125,11 +125,15 @@ void djui_panel_pause_create(struct DjuiBase* caller) {
 #endif
         djui_button_create(body, DLANG(PAUSE, RESUME), DJUI_BUTTON_STYLE_NORMAL, djui_panel_pause_resume);
 
+#ifdef __EMSCRIPTEN__
+        djui_button_create(body, "Return to Main Menu", DJUI_BUTTON_STYLE_BACK, djui_panel_pause_quit);
+#else
         if (gNetworkType == NT_SERVER) {
             djui_button_create(body, DLANG(PAUSE, STOP_HOSTING), DJUI_BUTTON_STYLE_BACK, djui_panel_pause_quit);
         } else {
             djui_button_create(body, DLANG(PAUSE, DISCONNECT), DJUI_BUTTON_STYLE_BACK, djui_panel_pause_quit);
         }
+#endif
     }
 
     djui_panel_add(caller, panel, defaultBase);
