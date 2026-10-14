@@ -14,7 +14,7 @@ function setup(){
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
   var overlay=document.createElement("section");overlay.id="sm64web-start-overlay";overlay.hidden=true;overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-labelledby","sm64web-start-title");
-  overlay.innerHTML='<div class="sm64web-dialog"><div class="sm64web-dialog-kicker">SINGLE-PLAYER</div><h1 id="sm64web-start-title">Start your adventure</h1><p>Choose how you want to play.</p><button class="sm64web-menu-button sm64web-primary" id="sm64web-new-game" type="button">New Game</button><button class="sm64web-menu-button" id="sm64web-load-save" type="button">Load Save</button><p class="sm64web-dialog-note">Save files are read locally in your browser.</p><button class="sm64web-menu-cancel" id="sm64web-cancel-start" type="button">Back</button></div>';
+  overlay.innerHTML='<div class="sm64web-dialog"><div class="sm64web-dialog-kicker">MARIO 64</div><h1 id="sm64web-start-title">SELECT GAME</h1><button class="sm64web-menu-button sm64web-primary" id="sm64web-new-game" type="button">New Game</button><button class="sm64web-menu-button" id="sm64web-load-save" type="button">Load Save</button><div class="sm64web-dialog-note">Choose an option</div><button class="sm64web-menu-cancel" id="sm64web-cancel-start" type="button">Back</button></div>';
   document.body.appendChild(overlay);
   function hideStartMenu(){overlay.hidden=true;}
   function showStartMenu(){overlay.hidden=false;document.getElementById("sm64web-new-game").focus();}

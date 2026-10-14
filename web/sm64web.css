@@ -1,47 +1,38 @@
-:root{color-scheme:dark;--bg:#080d16;--panel:#101827;--line:#26364c;--text:#eaf2ff;--muted:#9baec7;--accent:#73b8ff}
+
+/* SM64-inspired shell: flat N64-era colors, hard edges, chunky borders. */
+:root{color-scheme:dark;--bg:#050505;--panel:#174bb5;--line:#f3f3f3;--text:#fff36a;--muted:#d5e6ff;--accent:#fff36a}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:radial-gradient(ellipse at 50% -20%,#203c5e 0,#0b1422 48%,var(--bg) 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{min-height:100vh;padding:22px clamp(12px,3vw,40px) 18px;display:flex;flex-direction:column;align-items:center;gap:16px}
-#sm64web-header{width:min(100%,1440px);display:flex;align-items:center;justify-content:space-between;gap:16px}
-.sm64web-brand{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:800;letter-spacing:.02em}
-.sm64web-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#8bd2ff,#3979e8);color:#07111f;font-weight:950;box-shadow:0 5px 24px #3989f955}
-.sm64web-subtitle{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.02em}
-#sm64web-header .sm64web-status{font-size:12px;color:#9ed6b4;border:1px solid #315541;background:#10251d;border-radius:999px;padding:7px 11px}
-#sm64web-stage{width:min(100%,1440px);aspect-ratio:16/9;min-height:220px;max-height:calc(100vh - 150px);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #32445b;border-radius:15px;background:#000;box-shadow:0 24px 80px #0008,0 0 0 5px #ffffff05}
+html,body{margin:0;min-height:100%;background:#101b34;color:#fff36a;font-family:Arial,Helvetica,sans-serif}
+body{min-height:100vh;padding:12px clamp(8px,2vw,24px);display:flex;flex-direction:column;align-items:center;gap:8px}
+#sm64web-header{width:min(100%,1440px);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px;color:#fff36a;text-shadow:2px 2px #17377d}
+.sm64web-brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;letter-spacing:.03em;text-transform:uppercase}
+.sm64web-mark{width:32px;height:32px;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#d92727;color:#fff;font-weight:900;text-shadow:1px 1px #7c1515;box-shadow:inset 0 -3px #921d1d}
+.sm64web-subtitle{font-size:10px;color:#d5e6ff;font-weight:700;letter-spacing:.02em;text-transform:none}
+#sm64web-header .sm64web-status{font-size:10px;font-weight:800;color:#fff;border:2px solid #fff;background:#174bb5;padding:5px 8px;text-shadow:1px 1px #17377d}
+#sm64web-stage{width:min(100%,1440px);aspect-ratio:16/9;min-height:220px;max-height:calc(100vh - 120px);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:3px solid #f5f5f5;background:#000;box-shadow:0 0 0 3px #17377d}
 #sm64web-stage canvas,#canvas{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:#000;outline:none}
-#sm64web-controls{width:min(100%,1440px);display:flex;align-items:center;justify-content:space-between;gap:14px;color:var(--muted);font-size:12px}
+#sm64web-controls{width:min(100%,1440px);display:flex;align-items:center;justify-content:space-between;gap:10px;color:#d5e6ff;font-size:11px;padding:8px 10px;border:2px solid #fff;background:#174bb5;box-shadow:0 0 0 2px #17377d;text-shadow:1px 1px #17377d}
 .sm64web-control-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.sm64web-control{appearance:none;border:1px solid #344963;background:linear-gradient(#1b2a3e,#111c2c);color:var(--text);border-radius:9px;padding:9px 13px;font:600 12px inherit;cursor:pointer}
-.sm64web-control:hover{border-color:#6eaddf;background:#20344b}
-.sm64web-control:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#sm64web-stage:fullscreen{width:100vw;height:100vh;max-height:none;max-width:none;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none;background:#000}
-#sm64web-stage:fullscreen canvas{width:100%;height:100%;object-fit:contain}
+.sm64web-control{appearance:none;border:2px solid #fff;background:#245fc9;color:#fff36a;padding:7px 11px;font:700 11px Arial,Helvetica,sans-serif;text-shadow:1px 1px #17377d;cursor:pointer}
+.sm64web-control:hover,.sm64web-control:focus-visible{background:#3479ec;outline:2px solid #fff36a;outline-offset:1px}
+#sm64web-stage:fullscreen{width:100vw;height:100vh;max-height:none;max-width:none;aspect-ratio:auto;border:0;box-shadow:none;background:#000}
+#sm64web-stage:fullscreen canvas{width:min(100vw,177.7778vh);height:min(100vh,56.25vw);flex:none;object-fit:contain;max-width:100vw;max-height:100vh}
 body:has(#sm64web-stage:fullscreen){padding:0;gap:0}
 body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:fullscreen) #sm64web-controls{display:none}
-#sm64web-stage:fullscreen canvas{width:min(100vw,177.7778vh);height:min(100vh,56.25vw);flex:none}
-#sm64web-stage:fullscreen{align-items:center;justify-content:center}
-#sm64web-stage:fullscreen canvas{max-width:100vw;max-height:100vh}
-#status,#output{color:var(--muted);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
-@media(max-width:700px){body{padding:10px;gap:10px}#sm64web-header{align-items:flex-start}.sm64web-subtitle{display:none}#sm64web-stage{border-radius:9px;min-height:180px;max-height:calc(100vh - 110px)}#sm64web-controls{align-items:flex-start;flex-direction:column}.sm64web-control{padding:8px 10px}}
-
-#sm64web-controls{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#0d1726cc;flex-wrap:wrap}
-.sm64web-control-group{gap:8px}
-.sm64web-hint{margin-right:8px}
+#status,#output{color:#fff;font-family:monospace}
 #sm64web-load-file{display:none}
-.sm64web-control{font:600 12px/1.2 inherit;white-space:nowrap}
-@media(max-width:700px){#sm64web-controls{flex-direction:column}.sm64web-hint{width:100%}}
-
-#sm64web-start-overlay{position:fixed;z-index:100000;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#060b13ee,#0c1728f5);backdrop-filter:blur(14px)}
+/* Pause/start panel modeled after the game's blue pause screen. */
+#sm64web-start-overlay{position:fixed;z-index:100000;inset:0;display:grid;place-items:center;padding:16px;background:#0009}
 #sm64web-start-overlay[hidden]{display:none}
-.sm64web-dialog{width:min(100%,440px);padding:clamp(24px,5vw,40px);border:1px solid #3b5573;border-radius:18px;background:linear-gradient(155deg,#192a40,#0d1625);box-shadow:0 32px 100px #0009;text-align:left}
-.sm64web-dialog-kicker{font-size:11px;font-weight:800;letter-spacing:.18em;color:#86c5ff}
-.sm64web-dialog h1{font-size:clamp(26px,4vw,36px);line-height:1.1;margin:14px 0 10px;letter-spacing:-.035em}
-.sm64web-dialog p{color:var(--muted);line-height:1.55;margin:0 0 22px}
-.sm64web-menu-button{width:100%;display:block;text-align:left;border:1px solid #354b66;border-radius:10px;background:#17263a;color:var(--text);padding:14px 16px;margin-top:10px;font:600 15px/1.2 inherit;cursor:pointer}
-.sm64web-menu-button:hover,.sm64web-menu-button:focus-visible{border-color:#8bc9ff;background:#213c59;outline:none}
-.sm64web-menu-button.sm64web-primary{background:linear-gradient(110deg,#438fe8,#2869c5);border-color:#76b8ff;color:white}
-.sm64web-menu-button.sm64web-primary:hover{background:linear-gradient(110deg,#5ca4f8,#3279dc)}
-.sm64web-dialog .sm64web-dialog-note{font-size:12px;margin:18px 0 8px}
-.sm64web-menu-cancel{border:0;background:transparent;color:#9eb3cc;padding:8px 0;font:500 13px inherit;cursor:pointer}
-.sm64web-menu-cancel:hover{color:white}
-#sm64web-load-file{display:none}
+.sm64web-dialog{width:min(100%,390px);padding:22px 28px 18px;border:3px solid #fff;background:linear-gradient(180deg,#2767d8 0%,#1743a7 100%);box-shadow:0 0 0 4px #071a50, inset 0 0 0 2px #5f9aff;text-align:center;color:#fff36a}
+.sm64web-dialog-kicker{font-size:11px;font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:2px 2px #17377d}
+.sm64web-dialog h1{font-size:25px;line-height:1.1;margin:10px 0 17px;font-weight:900;letter-spacing:.02em;color:#fff36a;text-shadow:2px 2px #17377d,-1px -1px #17377d}
+.sm64web-dialog p{color:#fff;line-height:1.4;margin:0 0 12px;font-size:12px}
+.sm64web-menu-button{width:100%;display:block;text-align:center;border:2px solid #fff;background:#225ac1;color:#fff36a;padding:12px 14px;margin-top:9px;font:900 15px Arial,Helvetica,sans-serif;text-shadow:2px 2px #17377d;cursor:pointer;box-shadow:inset 0 -3px #12367f}
+.sm64web-menu-button:hover,.sm64web-menu-button:focus-visible{background:#347bed;outline:2px solid #fff36a;outline-offset:2px}
+.sm64web-menu-button.sm64web-primary{background:#347bed;border-color:#fff;color:#fff36a}
+.sm64web-menu-button.sm64web-primary:hover{background:#4b8cff}
+.sm64web-dialog .sm64web-dialog-note{font-size:11px;color:#d5e6ff;margin:14px 0 7px}
+.sm64web-menu-cancel{border:0;background:transparent;color:#fff;padding:8px 0;font:800 12px Arial,Helvetica,sans-serif;text-shadow:1px 1px #17377d;cursor:pointer}
+.sm64web-menu-cancel:hover{color:#fff36a}
+@media(max-width:700px){body{padding:8px;gap:8px}#sm64web-header{align-items:flex-start}.sm64web-subtitle{display:none}#sm64web-stage{min-height:180px;max-height:calc(100vh - 105px)}#sm64web-controls{align-items:flex-start;flex-direction:column}.sm64web-control{padding:7px 9px}.sm64web-dialog{padding:20px}}
