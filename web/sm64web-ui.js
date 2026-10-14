@@ -29,15 +29,44 @@ function setup(){
       }catch(_){status("Could not capture the mouse.");}
     }
   });
+  // Translate pointer-locked mouse motion into brief arrow-key presses.
+  // The game already responds to arrow keys, so this avoids depending on
+  // SDL relative-mouse support in the browser build.
+  var cameraKeys={};
+  var cameraKeyTimers={};
+  function releaseCameraKey(key){
+    if(!cameraKeys[key])return;
+    canvas.dispatchEvent(new KeyboardEvent("keyup",{key:key,code:key,bubbles:true,cancelable:true}));
+    delete cameraKeys[key];
+  }
+  function tapCameraKey(key){
+    if(!cameraKeys[key]){
+      cameraKeys[key]=true;
+      canvas.dispatchEvent(new KeyboardEvent("keydown",{key:key,code:key,bubbles:true,cancelable:true}));
+    }
+    if(cameraKeyTimers[key])clearTimeout(cameraKeyTimers[key]);
+    cameraKeyTimers[key]=setTimeout(function(){releaseCameraKey(key);delete cameraKeyTimers[key];},70);
+  }
+  document.addEventListener("mousemove",function(e){
+    if(document.pointerLockElement!==canvas)return;
+    var dx=e.movementX||0,dy=e.movementY||0;
+    var threshold=1.5;
+    if(dx < -threshold)tapCameraKey("ArrowLeft");
+    else if(dx > threshold)tapCameraKey("ArrowRight");
+    if(dy < -threshold)tapCameraKey("ArrowUp");
+    else if(dy > threshold)tapCameraKey("ArrowDown");
+  });
   document.addEventListener("pointerlockchange",function(){
     var locked=document.pointerLockElement===canvas;
-    // Pointer Lock is browser-side; explicitly switch SDL's relative mouse
-    // mode too, otherwise SDL_GetRelativeMouseState stays at zero in Wasm.
     var m=api();
     if(typeof m._sm64web_set_mouse_capture==="function"){
       m._sm64web_set_mouse_capture(locked?1:0);
     }
-    status(locked?"Camera locked — move mouse to look; right-click to release.":"Camera unlocked.");
+    if(!locked){
+      Object.keys(cameraKeys).forEach(releaseCameraKey);
+      Object.keys(cameraKeyTimers).forEach(function(key){clearTimeout(cameraKeyTimers[key]);delete cameraKeyTimers[key];});
+    }
+    status(locked?"Camera locked — mouse movement is mapped to arrow keys; right-click to release.":"Camera unlocked.");
   });
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
