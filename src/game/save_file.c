@@ -17,6 +17,9 @@
 #include "pc/utils/misc.h"
 #include "pc/configfile.h"
 #include "audio/external.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 #ifndef bcopy
 #define bcopy(b1,b2,len) (memmove((b2), (b1), (len)), (void) 0)
@@ -34,6 +37,17 @@
 STATIC_ASSERT(sizeof(struct SaveBuffer) == EEPROM_SIZE, "eeprom buffer size must match");
 
 extern struct SaveBuffer gSaveBuffer;
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE void* sm64web_get_save_buffer(void) { return &gSaveBuffer; }
+EMSCRIPTEN_KEEPALIVE u32 sm64web_get_save_buffer_size(void) { return sizeof(gSaveBuffer); }
+EMSCRIPTEN_KEEPALIVE s32 sm64web_import_save_buffer(const void* data, u32 size) {
+    if (data == NULL || size != sizeof(gSaveBuffer)) { return 0; }
+    bcopy(data, &gSaveBuffer, sizeof(gSaveBuffer));
+    save_file_reload(1);
+    return 1;
+}
+#endif
 
 struct WarpCheckpoint gWarpCheckpoint;
 

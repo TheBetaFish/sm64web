@@ -58,6 +58,9 @@ void djui_panel_main_create(struct DjuiBase* caller) {
             struct DjuiButton* button1 = djui_button_create(body, "Play Solo", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_play_solo);
             if (!configExCoopTheme) { djui_base_set_location(&button1->base, 0, -30); }
             djui_cursor_input_controlled_center(&button1->base);
+            struct DjuiButton* buttonMulti = djui_button_create(body, "Multiplayer (coming soon)", DJUI_BUTTON_STYLE_NORMAL, NULL);
+            buttonMulti->base.enabled = false;
+            if (!configExCoopTheme) { djui_base_set_location(&buttonMulti->base, 0, -30); }
             struct DjuiButton* button3 = djui_button_create(body, DLANG(MAIN, OPTIONS), DJUI_BUTTON_STYLE_NORMAL, djui_panel_options_create);
             if (!configExCoopTheme) { djui_base_set_location(&button3->base, 0, -30); }
             struct DjuiButton* button4 = djui_button_create(body, DLANG(MAIN, QUIT), DJUI_BUTTON_STYLE_BACK, djui_panel_main_quit);
