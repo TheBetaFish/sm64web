@@ -21,7 +21,8 @@ function setup(){
       var ptr=m._sm64web_get_save_buffer(),size=m._sm64web_get_save_buffer_size();
       var bytes=new Uint8Array(m.HEAPU8.buffer,ptr,size),hex="";
       for(var i=0;i<bytes.length;i++)hex+=bytes[i].toString(16).padStart(2,"0");
-      var blob=new Blob([JSON.stringify({format:"sm64web-save-v1",data:hex},null,2)],{type:"text/plain"});
+      var slot=typeof m._sm64web_get_current_save_slot==="function"?m._sm64web_get_current_save_slot():1;
+      var blob=new Blob([JSON.stringify({format:"sm64web-save-v1",activeSlot:slot,data:hex},null,2)],{type:"text/plain"});
       var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="sm64web-progress.txt";a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);status("Save file exported.");return true;
     }catch(e){status("Could not save progress: "+e.message);return false;}
   }
@@ -36,24 +37,28 @@ function setup(){
       try{
         var obj=JSON.parse(String(reader.result));
         if(!obj||obj.format!=="sm64web-save-v1"||typeof obj.data!=="string"||obj.data.length%2||!/^[0-9a-f]*$/i.test(obj.data))throw new Error("This is not a valid sm64web save file.");
-        var m=api();if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function")throw new Error("Save import is not available in this build yet.");
-        var size=obj.data.length/2,ptr=m._malloc(size);if(!ptr)throw new Error("Not enough memory.");
-        try{for(var i=0;i<size;i++)m.HEAPU8[ptr+i]=parseInt(obj.data.slice(i*2,i*2+2),16);if(m._sm64web_import_save_buffer(ptr,size)!==1)throw new Error("Save file is incompatible with this build.");}
-        finally{m._free(ptr);}
-        // Preserve the imported bytes until solo-session initialization has finished.
-        // The host startup path reloads EEPROM-backed data, overwriting an early import.
+        var m=api();
+        if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function")throw new Error("Save import is not available in this build yet.");
+        var size=obj.data.length/2;
+        if(typeof m._sm64web_get_save_buffer_size==="function"&&size!==m._sm64web_get_save_buffer_size())throw new Error("This save has the wrong size for this build.");
         var importedBytes=new Uint8Array(size);
-        for(var j=0;j<size;j++)importedBytes[j]=parseInt(obj.data.slice(j*2,j*2+2),16);
-        status("Save read. Starting solo mode…");
+        for(var i=0;i<size;i++)importedBytes[i]=parseInt(obj.data.slice(i*2,i*2+2),16);
+        var slot=Number(obj.activeSlot);
+        if(!Number.isInteger(slot)||slot<1||slot>4)slot=1;
+        if(typeof m._sm64web_set_save_slot==="function")m._sm64web_set_save_slot(slot);
+        status("Starting solo mode with save slot "+slot+"…");
         startSolo();
+        // Apply only after session initialization, which can reload EEPROM-backed data.
         window.setTimeout(function(){
           try{
             var live=api();
             if(typeof live._sm64web_import_save_buffer!=="function"||typeof live._malloc!=="function"||typeof live._free!=="function")throw new Error("Save import is not available.");
+            var liveSize=typeof live._sm64web_get_save_buffer_size==="function"?live._sm64web_get_save_buffer_size():importedBytes.length;
+            if(liveSize!==importedBytes.length)throw new Error("Save file is incompatible with this build.");
             var livePtr=live._malloc(importedBytes.length);if(!livePtr)throw new Error("Not enough memory.");
             try{live.HEAPU8.set(importedBytes,livePtr);if(live._sm64web_import_save_buffer(livePtr,importedBytes.length)!==1)throw new Error("Save file is incompatible with this build.");}
             finally{live._free(livePtr);}
-            status("Save loaded.");
+            status("Save loaded (slot "+slot+").");
           }catch(e){status("Save apply failed: "+e.message);}
         },1200);
       }catch(e){status("Load failed: "+e.message);}

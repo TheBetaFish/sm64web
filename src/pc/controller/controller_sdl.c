@@ -139,8 +139,16 @@ static void controller_sdl_init(void) {
         free(gcdata);
     }
 
+#ifdef __EMSCRIPTEN__
+    // Browser gameplay must never request pointer lock or hide the cursor.
+    controller_mouse_leave_relative();
+    controller_mouse_read_relative();
+    mouse_x = 0;
+    mouse_y = 0;
+#else
     if (gNewCamera.isMouse) { controller_mouse_enter_relative(); }
     controller_mouse_read_relative();
+#endif
 
     controller_sdl_bind();
 
@@ -208,14 +216,23 @@ extern s16 gMenuMode;
 static void controller_sdl_read(OSContPad *pad) {
     if (!init_ok) { return; }
 
+#ifdef __EMSCRIPTEN__
+    // Keep a normal browser cursor; mouse motion is not a camera axis.
+    controller_mouse_leave_relative();
+#else
     if ((gNewCamera.isMouse || get_first_person_enabled() || gDjuiHudLockMouse) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus && gWindowApi->has_focus()) {
         controller_mouse_enter_relative();
     } else {
         controller_mouse_leave_relative();
     }
+#endif
 
     u32 mouse_prev = mouse_buttons;
     controller_mouse_read_relative();
+#ifdef __EMSCRIPTEN__
+    mouse_x = 0;
+    mouse_y = 0;
+#endif
     u32 mouse = mouse_buttons;
 
     u32 buttons_down = 0;

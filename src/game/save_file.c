@@ -39,10 +39,21 @@ STATIC_ASSERT(sizeof(struct SaveBuffer) == EEPROM_SIZE, "eeprom buffer size must
 extern struct SaveBuffer gSaveBuffer;
 extern s8 gMainMenuDataModified;
 extern s8 gSaveFileModified;
+extern s16 gCurrSaveFileNum;
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE void* sm64web_get_save_buffer(void) { return &gSaveBuffer; }
 EMSCRIPTEN_KEEPALIVE u32 sm64web_get_save_buffer_size(void) { return sizeof(gSaveBuffer); }
+EMSCRIPTEN_KEEPALIVE u32 sm64web_get_current_save_slot(void) {
+    u32 slot = (gCurrSaveFileNum >= 1 && gCurrSaveFileNum <= NUM_SAVE_FILES)
+        ? (u32)gCurrSaveFileNum : configHostSaveSlot;
+    return (slot >= 1 && slot <= NUM_SAVE_FILES) ? slot : 1;
+}
+EMSCRIPTEN_KEEPALIVE void sm64web_set_save_slot(u32 slot) {
+    if (slot >= 1 && slot <= NUM_SAVE_FILES) {
+        configHostSaveSlot = slot;
+    }
+}
 EMSCRIPTEN_KEEPALIVE s32 sm64web_import_save_buffer(const void* data, u32 size) {
     if (data == NULL || size != sizeof(gSaveBuffer)) { return 0; }
     // Do not call save_file_reload here: it reads EEPROM and would overwrite
