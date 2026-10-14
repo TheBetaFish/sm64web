@@ -11,18 +11,26 @@ function setup(){
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
-  // Right-click-and-hold captures the pointer for camera movement. Releasing
-  // right-click exits pointer lock so the normal cursor immediately returns.
+  // Right-click toggles camera mode; it is a click, not a hold modifier.
+  // Request/exit Pointer Lock directly from the user gesture so browsers allow it.
   canvas.addEventListener("contextmenu",function(e){e.preventDefault();});
   canvas.addEventListener("mousedown",function(e){
     if(e.button!==2)return;
     e.preventDefault();
-    if(canvas.requestPointerLock&&document.pointerLockElement!==canvas){
-      try{var lock=canvas.requestPointerLock();if(lock&&typeof lock.catch==="function")lock.catch(function(){});}catch(_){}
+    if(document.pointerLockElement===canvas){
+      if(document.exitPointerLock)document.exitPointerLock();
+      status("Camera unlocked.");
+      return;
+    }
+    if(canvas.requestPointerLock){
+      try{
+        var lock=canvas.requestPointerLock();
+        if(lock&&typeof lock.catch==="function")lock.catch(function(){status("Camera capture was blocked by the browser.");});
+      }catch(_){status("Could not capture the mouse.");}
     }
   });
-  document.addEventListener("mouseup",function(e){
-    if(e.button===2&&document.pointerLockElement===canvas&&document.exitPointerLock)document.exitPointerLock();
+  document.addEventListener("pointerlockchange",function(){
+    status(document.pointerLockElement===canvas?"Camera locked — right-click to release.":"Camera unlocked.");
   });
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);

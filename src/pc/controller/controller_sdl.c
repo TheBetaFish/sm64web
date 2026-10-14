@@ -228,15 +228,10 @@ static void controller_sdl_read(OSContPad *pad) {
     controller_mouse_read_relative();
     u32 mouse = mouse_buttons;
 #ifdef __EMSCRIPTEN__
-    // Right mouse button is a momentary camera-capture modifier in the browser.
-    // Keep relative mode active only while held, and never capture in menus.
-    if ((mouse & SDL_BUTTON(3)) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus) {
-        controller_mouse_enter_relative();
-    } else {
-        controller_mouse_leave_relative();
-        mouse_x = 0;
-        mouse_y = 0;
-    }
+    // In the browser, JS toggles Pointer Lock on a right-click. Do not treat
+    // that click as a game action, and do not re-enter SDL relative mode here:
+    // Pointer Lock itself supplies relative motion to SDL.
+    mouse &= ~SDL_BUTTON(3);
 #endif
 
     u32 buttons_down = 0;
