@@ -13,13 +13,7 @@ function setup(){
   function status(message){if(hint)hint.textContent=message;}
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
-  var overlay=document.createElement("section");overlay.id="sm64web-start-overlay";overlay.hidden=true;overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-labelledby","sm64web-start-title");
-  overlay.innerHTML='<div class="sm64web-dialog"><div class="sm64web-dialog-kicker">MARIO 64</div><h1 id="sm64web-start-title">SELECT GAME</h1><button class="sm64web-menu-button sm64web-primary" id="sm64web-new-game" type="button">New Game</button><button class="sm64web-menu-button" id="sm64web-load-save" type="button">Load Save</button><div class="sm64web-dialog-note">Choose an option</div><button class="sm64web-menu-cancel" id="sm64web-cancel-start" type="button">Back</button></div>';
-  document.body.appendChild(overlay);
-  function hideStartMenu(){overlay.hidden=true;}
-  function showStartMenu(){overlay.hidden=false;document.getElementById("sm64web-new-game").focus();}
-  window.sm64webShowStartMenu=showStartMenu;
-  function startSolo(){hideStartMenu();var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}
+  function startSolo(){var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}
   function saveProgress(){
     var m=api();
     if(typeof m._sm64web_get_save_buffer!=="function"||typeof m._sm64web_get_save_buffer_size!=="function"){status("Save export is not available in this build yet.");return false;}
@@ -32,9 +26,7 @@ function setup(){
     }catch(e){status("Could not save progress: "+e.message);return false;}
   }
   window.sm64webSaveProgress=saveProgress;
-  document.getElementById("sm64web-new-game").addEventListener("click",startSolo);
-  document.getElementById("sm64web-cancel-start").addEventListener("click",hideStartMenu);
-  document.getElementById("sm64web-load-save").addEventListener("click",function(){picker.click();});
+  window.sm64webLoadProgress=function(){picker.click();};
   picker.addEventListener("change",function(){
     var file=picker.files&&picker.files[0];if(!file)return;
     status("Reading save file…");
@@ -49,12 +41,11 @@ function setup(){
         try{for(var i=0;i<size;i++)m.HEAPU8[ptr+i]=parseInt(obj.data.slice(i*2,i*2+2),16);if(m._sm64web_import_save_buffer(ptr,size)!==1)throw new Error("Save file is incompatible with this build.");}
         finally{m._free(ptr);}
         status("Save loaded. Starting solo mode…");startSolo();
-      }catch(e){status("Load failed: "+e.message);overlay.hidden=false;}
+      }catch(e){status("Load failed: "+e.message);}
       picker.value="";
     };
     reader.readAsText(file);
   });
-  overlay.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();hideStartMenu();}});
   var btn=document.getElementById("sm64web-fullscreen");
   function sync(){btn.textContent=(document.fullscreenElement===stage)?"Exit fullscreen":"Fullscreen";}
   btn.addEventListener("click",function(){if(document.fullscreenElement){if(document.exitFullscreen)document.exitFullscreen();}else if(stage.requestFullscreen){stage.requestFullscreen().catch(function(){stage.classList.add("sm64web-fullscreen-fallback");});}else stage.classList.add("sm64web-fullscreen-fallback");});

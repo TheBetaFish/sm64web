@@ -39,16 +39,26 @@ EMSCRIPTEN_KEEPALIVE void sm64web_start_solo(void) {
     djui_panel_do_host(false, true);
 }
 
-static void djui_panel_main_play_solo(UNUSED struct DjuiBase* caller) {
-    // Let the browser front end ask whether to start fresh or import a save
-    // before entering the local solo session.
+static void djui_panel_main_new_game(UNUSED struct DjuiBase* caller) {
+    sm64web_start_solo();
+}
+
+static void djui_panel_main_load_save(UNUSED struct DjuiBase* caller) {
+    // The file picker is a browser capability; all menu navigation stays in DJUI.
     EM_ASM({
-        if (typeof window.sm64webShowStartMenu === 'function') {
-            window.sm64webShowStartMenu();
-        } else if (typeof Module._sm64web_start_solo === 'function') {
-            Module._sm64web_start_solo();
+        if (typeof window.sm64webLoadProgress === 'function') {
+            window.sm64webLoadProgress();
         }
     });
+}
+
+static void djui_panel_main_play_solo(struct DjuiBase* caller) {
+    struct DjuiThreePanel* panel = djui_panel_menu_create("SELECT GAME", false);
+    struct DjuiBase* body = djui_three_panel_get_body(panel);
+    djui_button_create(body, "New Game", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_new_game);
+    djui_button_create(body, "Load Save", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_load_save);
+    djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_menu_back);
+    djui_panel_add(caller, panel, NULL);
 }
 #endif
 
