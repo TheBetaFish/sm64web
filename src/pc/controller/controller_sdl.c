@@ -223,12 +223,6 @@ static void controller_sdl_read(OSContPad *pad) {
         controller_mouse_leave_relative();
     }
 #endif
-    if ((gNewCamera.isMouse || get_first_person_enabled() || gDjuiHudLockMouse) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus && gWindowApi->has_focus()) {
-        controller_mouse_enter_relative();
-    } else {
-        controller_mouse_leave_relative();
-    }
-#endif
 
     u32 mouse_prev = mouse_buttons;
     controller_mouse_read_relative();
