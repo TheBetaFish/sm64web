@@ -11,6 +11,19 @@ function setup(){
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
+  // Right-click-and-hold captures the pointer for camera movement. Releasing
+  // right-click exits pointer lock so the normal cursor immediately returns.
+  canvas.addEventListener("contextmenu",function(e){e.preventDefault();});
+  canvas.addEventListener("mousedown",function(e){
+    if(e.button!==2)return;
+    e.preventDefault();
+    if(canvas.requestPointerLock&&document.pointerLockElement!==canvas){
+      try{var lock=canvas.requestPointerLock();if(lock&&typeof lock.catch==="function")lock.catch(function(){});}catch(_){}
+    }
+  });
+  document.addEventListener("mouseup",function(e){
+    if(e.button===2&&document.pointerLockElement===canvas&&document.exitPointerLock)document.exitPointerLock();
+  });
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
   function startSolo(){var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}

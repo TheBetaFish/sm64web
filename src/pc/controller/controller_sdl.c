@@ -140,7 +140,7 @@ static void controller_sdl_init(void) {
     }
 
 #ifdef __EMSCRIPTEN__
-    // Browser gameplay must never request pointer lock or hide the cursor.
+    // Start with the normal cursor visible; right-click enables camera capture.
     controller_mouse_leave_relative();
     controller_mouse_read_relative();
     mouse_x = 0;
@@ -216,10 +216,13 @@ extern s16 gMenuMode;
 static void controller_sdl_read(OSContPad *pad) {
     if (!init_ok) { return; }
 
-#ifdef __EMSCRIPTEN__
-    // Keep a normal browser cursor; mouse motion is not a camera axis.
-    controller_mouse_leave_relative();
-#else
+#ifndef __EMSCRIPTEN__
+    if ((gNewCamera.isMouse || get_first_person_enabled() || gDjuiHudLockMouse) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus && gWindowApi->has_focus()) {
+        controller_mouse_enter_relative();
+    } else {
+        controller_mouse_leave_relative();
+    }
+#endif
     if ((gNewCamera.isMouse || get_first_person_enabled() || gDjuiHudLockMouse) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus && gWindowApi->has_focus()) {
         controller_mouse_enter_relative();
     } else {
@@ -229,11 +232,18 @@ static void controller_sdl_read(OSContPad *pad) {
 
     u32 mouse_prev = mouse_buttons;
     controller_mouse_read_relative();
-#ifdef __EMSCRIPTEN__
-    mouse_x = 0;
-    mouse_y = 0;
-#endif
     u32 mouse = mouse_buttons;
+#ifdef __EMSCRIPTEN__
+    // Right mouse button is a momentary camera-capture modifier in the browser.
+    // Keep relative mode active only while held, and never capture in menus.
+    if ((mouse & SDL_BUTTON(3)) && !is_game_paused() && !gDjuiPanelPauseCreated && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus) {
+        controller_mouse_enter_relative();
+    } else {
+        controller_mouse_leave_relative();
+        mouse_x = 0;
+        mouse_y = 0;
+    }
+#endif
 
     u32 buttons_down = 0;
     if (!gInteractableOverridePad) {
