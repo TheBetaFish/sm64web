@@ -1,4 +1,7 @@
 #include "djui.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 #include "djui_panel.h"
 #include "djui_panel_host.h"
 #include "djui_panel_join.h"
@@ -26,7 +29,7 @@ static void djui_panel_main_quit(struct DjuiBase* caller) {
 }
 
 #ifdef __EMSCRIPTEN__
-static void djui_panel_main_play_solo(UNUSED struct DjuiBase* caller) {
+EMSCRIPTEN_KEEPALIVE void sm64web_start_solo(void) {
     // The browser build has no usable UDP sockets. Start a one-player local
     // server session; socket.c provides a no-network transport for this mode.
     configAmountOfPlayers = 1;
@@ -34,6 +37,18 @@ static void djui_panel_main_play_solo(UNUSED struct DjuiBase* caller) {
     network_reset_reconnect_and_rehost();
     extern void djui_panel_do_host(bool reconnecting, bool playSound);
     djui_panel_do_host(false, true);
+}
+
+static void djui_panel_main_play_solo(UNUSED struct DjuiBase* caller) {
+    // Let the browser front end ask whether to start fresh or import a save
+    // before entering the local solo session.
+    EM_ASM({
+        if (typeof window.sm64webShowStartMenu === 'function') {
+            window.sm64webShowStartMenu();
+        } else if (typeof Module._sm64web_start_solo === 'function') {
+            Module._sm64web_start_solo();
+        }
+    });
 }
 #endif
 

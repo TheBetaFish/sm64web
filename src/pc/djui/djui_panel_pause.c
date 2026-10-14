@@ -1,4 +1,7 @@
 #include "sm64.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 #include "djui.h"
 #include "djui_panel.h"
 #include "djui_panel_player.h"
@@ -20,6 +23,16 @@ bool gDjuiPanelPauseCreated = false;
 static void djui_panel_pause_resume(UNUSED struct DjuiBase* caller) {
     djui_panel_shutdown();
 }
+
+#ifdef __EMSCRIPTEN__
+static void djui_panel_pause_save(UNUSED struct DjuiBase* caller) {
+    EM_ASM({
+        if (typeof window.sm64webSaveProgress === 'function') {
+            window.sm64webSaveProgress();
+        }
+    });
+}
+#endif
 
 void djui_panel_pause_quit_yes(UNUSED struct DjuiBase* caller) {
     network_reset_reconnect_and_rehost();
@@ -107,6 +120,9 @@ void djui_panel_pause_create(struct DjuiBase* caller) {
             djui_button_create(body, DLANG(PAUSE, MOD_MENU), DJUI_BUTTON_STYLE_NORMAL, djui_panel_mod_menu_create);
         }
 
+#ifdef __EMSCRIPTEN__
+        djui_button_create(body, "Save Game", DJUI_BUTTON_STYLE_NORMAL, djui_panel_pause_save);
+#endif
         djui_button_create(body, DLANG(PAUSE, RESUME), DJUI_BUTTON_STYLE_NORMAL, djui_panel_pause_resume);
 
         if (gNetworkType == NT_SERVER) {

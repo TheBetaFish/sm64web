@@ -30,3 +30,18 @@ body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:full
 #sm64web-load-file{display:none}
 .sm64web-control{font:600 12px/1.2 inherit;white-space:nowrap}
 @media(max-width:700px){#sm64web-controls{flex-direction:column}.sm64web-hint{width:100%}}
+
+#sm64web-start-overlay{position:fixed;z-index:100000;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#060b13ee,#0c1728f5);backdrop-filter:blur(14px)}
+#sm64web-start-overlay[hidden]{display:none}
+.sm64web-dialog{width:min(100%,440px);padding:clamp(24px,5vw,40px);border:1px solid #3b5573;border-radius:18px;background:linear-gradient(155deg,#192a40,#0d1625);box-shadow:0 32px 100px #0009;text-align:left}
+.sm64web-dialog-kicker{font-size:11px;font-weight:800;letter-spacing:.18em;color:#86c5ff}
+.sm64web-dialog h1{font-size:clamp(26px,4vw,36px);line-height:1.1;margin:14px 0 10px;letter-spacing:-.035em}
+.sm64web-dialog p{color:var(--muted);line-height:1.55;margin:0 0 22px}
+.sm64web-menu-button{width:100%;display:block;text-align:left;border:1px solid #354b66;border-radius:10px;background:#17263a;color:var(--text);padding:14px 16px;margin-top:10px;font:600 15px/1.2 inherit;cursor:pointer}
+.sm64web-menu-button:hover,.sm64web-menu-button:focus-visible{border-color:#8bc9ff;background:#213c59;outline:none}
+.sm64web-menu-button.sm64web-primary{background:linear-gradient(110deg,#438fe8,#2869c5);border-color:#76b8ff;color:white}
+.sm64web-menu-button.sm64web-primary:hover{background:linear-gradient(110deg,#5ca4f8,#3279dc)}
+.sm64web-dialog .sm64web-dialog-note{font-size:12px;margin:18px 0 8px}
+.sm64web-menu-cancel{border:0;background:transparent;color:#9eb3cc;padding:8px 0;font:500 13px inherit;cursor:pointer}
+.sm64web-menu-cancel:hover{color:white}
+#sm64web-load-file{display:none}

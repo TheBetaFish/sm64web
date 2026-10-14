@@ -7,45 +7,58 @@ function setup(){
   header.innerHTML='<div class="sm64web-brand"><span class="sm64web-mark">64</span><div>sm64web<div class="sm64web-subtitle">Experimental browser build</div></div></div><span class="sm64web-status">LOCAL ROM · SOLO PLAY</span>';
   var stage=document.createElement("main");stage.id="sm64web-stage";stage.setAttribute("aria-label","Super Mario 64 game viewport");
   var controls=document.createElement("footer");controls.id="sm64web-controls";
-  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint">Progress files stay on your device.</span><button class="sm64web-control" id="sm64web-save" type="button">Save progress</button><button class="sm64web-control" id="sm64web-load" type="button">Load progress</button><input id="sm64web-load-file" type="file" accept=".txt,.json,application/json,text/plain" hidden></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div>';
+  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div>';
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
-  var save=document.getElementById("sm64web-save"),load=document.getElementById("sm64web-load"),picker=document.getElementById("sm64web-load-file");
-  function status(message){var hint=controls.querySelector(".sm64web-hint");if(hint)hint.textContent=message;}
+  var hint=controls.querySelector(".sm64web-hint");
+  function status(message){if(hint)hint.textContent=message;}
   function api(){return window.Module||{};}
-  save.addEventListener("click",function(){
+  var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
+  var overlay=document.createElement("section");overlay.id="sm64web-start-overlay";overlay.hidden=true;overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-labelledby","sm64web-start-title");
+  overlay.innerHTML='<div class="sm64web-dialog"><div class="sm64web-dialog-kicker">SINGLE-PLAYER</div><h1 id="sm64web-start-title">Start your adventure</h1><p>Choose how you want to play.</p><button class="sm64web-menu-button sm64web-primary" id="sm64web-new-game" type="button">New Game</button><button class="sm64web-menu-button" id="sm64web-load-save" type="button">Load Save</button><p class="sm64web-dialog-note">Save files are read locally in your browser.</p><button class="sm64web-menu-cancel" id="sm64web-cancel-start" type="button">Back</button></div>';
+  document.body.appendChild(overlay);
+  function hideStartMenu(){overlay.hidden=true;}
+  function showStartMenu(){overlay.hidden=false;document.getElementById("sm64web-new-game").focus();}
+  window.sm64webShowStartMenu=showStartMenu;
+  function startSolo(){hideStartMenu();var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}
+  function saveProgress(){
     var m=api();
-    if(typeof m._sm64web_get_save_buffer!=="function"||typeof m._sm64web_get_save_buffer_size!=="function"){status("Save export is not available in this build yet.");return;}
+    if(typeof m._sm64web_get_save_buffer!=="function"||typeof m._sm64web_get_save_buffer_size!=="function"){status("Save export is not available in this build yet.");return false;}
     try{
       var ptr=m._sm64web_get_save_buffer(),size=m._sm64web_get_save_buffer_size();
       var bytes=new Uint8Array(m.HEAPU8.buffer,ptr,size),hex="";
       for(var i=0;i<bytes.length;i++)hex+=bytes[i].toString(16).padStart(2,"0");
       var blob=new Blob([JSON.stringify({format:"sm64web-save-v1",data:hex},null,2)],{type:"text/plain"});
-      var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="sm64web-progress.txt";a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);status("Progress exported.");
-    }catch(e){status("Could not export progress: "+e.message);}
-  });
-  load.addEventListener("click",function(){picker.click();});
+      var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="sm64web-progress.txt";a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);status("Save file exported.");return true;
+    }catch(e){status("Could not save progress: "+e.message);return false;}
+  }
+  window.sm64webSaveProgress=saveProgress;
+  document.getElementById("sm64web-new-game").addEventListener("click",startSolo);
+  document.getElementById("sm64web-cancel-start").addEventListener("click",hideStartMenu);
+  document.getElementById("sm64web-load-save").addEventListener("click",function(){picker.click();});
   picker.addEventListener("change",function(){
     var file=picker.files&&picker.files[0];if(!file)return;
+    status("Reading save file…");
     var reader=new FileReader();
     reader.onerror=function(){status("Could not read that save file.");};
     reader.onload=function(){
       try{
         var obj=JSON.parse(String(reader.result));
-        if(!obj||obj.format!=="sm64web-save-v1"||typeof obj.data!=="string"||obj.data.length%2)throw new Error("Not an sm64web progress file");
-        var m=api();if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function")throw new Error("Save import is not available in this build yet");
-        var size=obj.data.length/2,ptr=m._malloc(size);if(!ptr)throw new Error("Not enough memory");
-        try{for(var i=0;i<size;i++){var b=parseInt(obj.data.slice(i*2,i*2+2),16);if(!Number.isFinite(b))throw new Error("Invalid save data");m.HEAPU8[ptr+i]=b;}if(m._sm64web_import_save_buffer(ptr,size)!==1)throw new Error("Save file size does not match this game build");}
+        if(!obj||obj.format!=="sm64web-save-v1"||typeof obj.data!=="string"||obj.data.length%2||!/^[0-9a-f]*$/i.test(obj.data))throw new Error("This is not a valid sm64web save file.");
+        var m=api();if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function")throw new Error("Save import is not available in this build yet.");
+        var size=obj.data.length/2,ptr=m._malloc(size);if(!ptr)throw new Error("Not enough memory.");
+        try{for(var i=0;i<size;i++)m.HEAPU8[ptr+i]=parseInt(obj.data.slice(i*2,i*2+2),16);if(m._sm64web_import_save_buffer(ptr,size)!==1)throw new Error("Save file is incompatible with this build.");}
         finally{m._free(ptr);}
-        status("Progress loaded. Return to the save-file menu to check it."); 
-      }catch(e){status("Load failed: "+e.message);}
+        status("Save loaded. Starting solo mode…");startSolo();
+      }catch(e){status("Load failed: "+e.message);overlay.hidden=false;}
       picker.value="";
     };
     reader.readAsText(file);
   });
+  overlay.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();hideStartMenu();}});
   var btn=document.getElementById("sm64web-fullscreen");
   function sync(){btn.textContent=(document.fullscreenElement===stage)?"Exit fullscreen":"Fullscreen";}
   btn.addEventListener("click",function(){if(document.fullscreenElement){if(document.exitFullscreen)document.exitFullscreen();}else if(stage.requestFullscreen){stage.requestFullscreen().catch(function(){stage.classList.add("sm64web-fullscreen-fallback");});}else stage.classList.add("sm64web-fullscreen-fallback");});
-  document.addEventListener("fullscreenchange",sync);window.addEventListener("resize",function(){window.dispatchEvent(new Event("resize"));});sync();
+  document.addEventListener("fullscreenchange",sync);sync();
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup);else setup();
 })();

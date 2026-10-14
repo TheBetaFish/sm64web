@@ -37,14 +37,19 @@
 STATIC_ASSERT(sizeof(struct SaveBuffer) == EEPROM_SIZE, "eeprom buffer size must match");
 
 extern struct SaveBuffer gSaveBuffer;
+extern s8 gMainMenuDataModified;
+extern s8 gSaveFileModified;
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE void* sm64web_get_save_buffer(void) { return &gSaveBuffer; }
 EMSCRIPTEN_KEEPALIVE u32 sm64web_get_save_buffer_size(void) { return sizeof(gSaveBuffer); }
 EMSCRIPTEN_KEEPALIVE s32 sm64web_import_save_buffer(const void* data, u32 size) {
     if (data == NULL || size != sizeof(gSaveBuffer)) { return 0; }
+    // Do not call save_file_reload here: it reads EEPROM and would overwrite
+    // the buffer we just imported. The imported buffer becomes the live save.
     bcopy(data, &gSaveBuffer, sizeof(gSaveBuffer));
-    save_file_reload(1);
+    gSaveFileModified = TRUE;
+    gMainMenuDataModified = TRUE;
     return 1;
 }
 #endif
