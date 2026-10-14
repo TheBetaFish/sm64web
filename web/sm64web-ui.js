@@ -30,7 +30,14 @@ function setup(){
     }
   });
   document.addEventListener("pointerlockchange",function(){
-    status(document.pointerLockElement===canvas?"Camera locked — right-click to release.":"Camera unlocked.");
+    var locked=document.pointerLockElement===canvas;
+    // Pointer Lock is browser-side; explicitly switch SDL's relative mouse
+    // mode too, otherwise SDL_GetRelativeMouseState stays at zero in Wasm.
+    var m=api();
+    if(typeof m._sm64web_set_mouse_capture==="function"){
+      m._sm64web_set_mouse_capture(locked?1:0);
+    }
+    status(locked?"Camera locked — move mouse to look; right-click to release.":"Camera unlocked.");
   });
   function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);

@@ -8,6 +8,9 @@
 #endif
 
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 #include <ultra64.h>
 
@@ -99,6 +102,20 @@ static void controller_sdl_bind(void) {
     controller_add_binds(L_JPAD,       configKeyDLeft);
     controller_add_binds(R_JPAD,       configKeyDRight);
 }
+
+#ifdef __EMSCRIPTEN__
+// Called by the browser when Pointer Lock is entered or exited. Keep SDL's
+// relative-mouse state in sync so SDL_GetRelativeMouseState returns movement.
+EMSCRIPTEN_KEEPALIVE void sm64web_set_mouse_capture(int enabled) {
+    if (enabled) {
+        controller_mouse_enter_relative();
+    } else {
+        controller_mouse_leave_relative();
+        mouse_x = 0;
+        mouse_y = 0;
+    }
+}
+#endif
 
 static void controller_sdl_init(void) {
     // Allows extended reports on PS4 and PS5 controllers
