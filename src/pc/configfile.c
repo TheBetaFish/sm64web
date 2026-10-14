@@ -103,7 +103,7 @@ static const unsigned int defaultConfigKeyA[MAX_BINDS]          = { 0x0039,     
 static const unsigned int defaultConfigKeyB[MAX_BINDS]          = { VK_INVALID, 0x1001,     0x1101     };
 static const unsigned int defaultConfigKeyX[MAX_BINDS]          = { 0x0017,     0x1002,     VK_INVALID };
 static const unsigned int defaultConfigKeyY[MAX_BINDS]          = { 0x0032,     0x1003,     VK_INVALID };
-static const unsigned int defaultConfigKeyStart[MAX_BINDS]      = { 0x0039,     0x1006,     VK_INVALID };
+static const unsigned int defaultConfigKeyStart[MAX_BINDS]      = { VK_INVALID, 0x1006,     VK_INVALID };
 static const unsigned int defaultConfigKeyL[MAX_BINDS]          = { 0x002A,     0x1009,     0x1104     };
 static const unsigned int defaultConfigKeyR[MAX_BINDS]          = { 0x0036,     0x100A,     0x101B     };
 static const unsigned int defaultConfigKeyZ[MAX_BINDS]          = { 0x001D,     0x1007,     VK_INVALID };
@@ -130,7 +130,7 @@ unsigned int configKeyA[MAX_BINDS]                = { 0x0039,     0x1000,     VK
 unsigned int configKeyB[MAX_BINDS]                = { VK_INVALID, 0x1001,     0x1101     };
 unsigned int configKeyX[MAX_BINDS]                = { 0x0017,     0x1002,     VK_INVALID };
 unsigned int configKeyY[MAX_BINDS]                = { 0x0032,     0x1003,     VK_INVALID };
-unsigned int configKeyStart[MAX_BINDS]            = { 0x0039,     0x1006,     VK_INVALID };
+unsigned int configKeyStart[MAX_BINDS]            = { VK_INVALID, 0x1006,     VK_INVALID };
 unsigned int configKeyL[MAX_BINDS]                = { 0x002A,     0x1009,     0x1104     };
 unsigned int configKeyR[MAX_BINDS]                = { 0x0036,     0x100A,     0x101B     };
 unsigned int configKeyZ[MAX_BINDS]                = { 0x001D,     0x1007,     VK_INVALID };
@@ -166,7 +166,7 @@ bool         configFreeCameraAnalog               = false;
 bool         configFreeCameraLCentering           = false;
 bool         configFreeCameraDPadBehavior         = false;
 bool         configFreeCameraHasCollision         = true;
-bool         configFreeCameraMouse                = true;
+bool         configFreeCameraMouse                = false;
 unsigned int configFreeCameraXSens                = 50;
 unsigned int configFreeCameraYSens                = 50;
 unsigned int configFreeCameraAggr                 = 0;
@@ -814,18 +814,23 @@ NEXT_OPTION:
     fs_close(file);
 
 #ifdef __EMSCRIPTEN__
-    // Migrate the old untouched defaults once, while preserving user-customized binds.
+    // Remove the old Space=Start binding so Space only jumps in the browser build.
+    // Also stop using pointer lock for camera movement; the browser cursor remains available.
+    if (configKeyStart[0] == 0x0039) {
+        configKeyStart[0] = VK_INVALID;
+    }
     if (configKeyA[0] == 0x0026 && configKeyB[0] == 0x0033 && configKeyZ[0] == 0x0025) {
-        configKeyA[0] = 0x0039; // Space: jump
+        configKeyA[0] = 0x0039;
         configKeyA[2] = VK_INVALID;
         configKeyB[0] = VK_INVALID;
-        configKeyB[2] = 0x1101; // Left mouse button: punch
-        configKeyZ[0] = 0x001D; // Left Ctrl: crouch
+        configKeyB[2] = 0x1101;
+        configKeyZ[0] = 0x001D;
         configKeyZ[2] = VK_INVALID;
         configEnableFreeCamera = true;
-        configFreeCameraMouse = true;
+        configFreeCameraMouse = false;
         configFreeCameraDegrade = 20;
     }
+    configFreeCameraMouse = false;
 #endif
 
     if (configGraphicsBackend < GAPI_GL || configGraphicsBackend > GAPI_MAX) { configGraphicsBackend = GAPI_GL; }

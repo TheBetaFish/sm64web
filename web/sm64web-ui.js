@@ -40,7 +40,22 @@ function setup(){
         var size=obj.data.length/2,ptr=m._malloc(size);if(!ptr)throw new Error("Not enough memory.");
         try{for(var i=0;i<size;i++)m.HEAPU8[ptr+i]=parseInt(obj.data.slice(i*2,i*2+2),16);if(m._sm64web_import_save_buffer(ptr,size)!==1)throw new Error("Save file is incompatible with this build.");}
         finally{m._free(ptr);}
-        status("Save loaded. Starting solo mode…");startSolo();
+        // Preserve the imported bytes until solo-session initialization has finished.
+        // The host startup path reloads EEPROM-backed data, overwriting an early import.
+        var importedBytes=new Uint8Array(size);
+        for(var j=0;j<size;j++)importedBytes[j]=parseInt(obj.data.slice(j*2,j*2+2),16);
+        status("Save read. Starting solo mode…");
+        startSolo();
+        window.setTimeout(function(){
+          try{
+            var live=api();
+            if(typeof live._sm64web_import_save_buffer!=="function"||typeof live._malloc!=="function"||typeof live._free!=="function")throw new Error("Save import is not available.");
+            var livePtr=live._malloc(importedBytes.length);if(!livePtr)throw new Error("Not enough memory.");
+            try{live.HEAPU8.set(importedBytes,livePtr);if(live._sm64web_import_save_buffer(livePtr,importedBytes.length)!==1)throw new Error("Save file is incompatible with this build.");}
+            finally{live._free(livePtr);}
+            status("Save loaded.");
+          }catch(e){status("Save apply failed: "+e.message);}
+        },1200);
       }catch(e){status("Load failed: "+e.message);}
       picker.value="";
     };

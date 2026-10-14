@@ -222,7 +222,7 @@ bool djui_interactable_on_key_down(int scancode) {
         }
     }
 
-    if (scancode == SCANCODE_ESCAPE && !gDjuiInMainMenu
+    if (scancode == SCANCODE_ESCAPE && gNetworkType != NT_NONE
         && !gDjuiPanelPauseCreated && !djui_panel_is_active()) {
         // Escape opens the game's native pause panel during solo gameplay.
         djui_panel_pause_create(NULL);
