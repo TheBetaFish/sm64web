@@ -1,0 +1,16 @@
+{
+  "name": "sm64web-multiplayer-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local WebSocket relay for sm64web browser multiplayer development",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
