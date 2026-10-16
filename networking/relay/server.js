@@ -30,6 +30,19 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 
+  // Explicitly upgrade WebSocket requests on the relay root path. With
+  // noServer:true, ws does not install this handler automatically.
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url !== "/") {
+      socket.write("HTTP/1.1 404 Not Found\\r\\nConnection: close\\r\\n\\r\\n");
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  });
+
   function sendControl(ws, message) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
   }
