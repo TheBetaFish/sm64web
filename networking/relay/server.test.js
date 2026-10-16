@@ -40,7 +40,7 @@ function sendControl(ws, value) {
   ws.send(JSON.stringify(value));
 }
 
-test("private room routes client packets to host and host packets to clients", async (t) => {
+test("private room routes client packets to host with peer identity and host packets to clients", async (t) => {
   const relay = createRelay({ port: 0, maxPlayers: 4 });
   const address = await relay.listen();
   const url = "ws://127.0.0.1:" + address.port;
@@ -55,17 +55,22 @@ test("private room routes client packets to host and host packets to clients", a
   sendControl(host, { type: "create" });
   const { value: room } = await created;
 
+  const peerJoined = nextMessage(host, (v) => v && v.type === "peer_joined");
   const client = await connect(url); sockets.push(client);
   const joined = nextMessage(client, (v) => v && v.type === "room_joined");
   sendControl(client, { type: "join", roomCode: room.roomCode.toLowerCase() });
-  await joined;
+  const { value: clientRoom } = await joined;
+  const { value: peerEvent } = await peerJoined;
+  assert.equal(clientRoom.peerId, peerEvent.peerId);
 
   const packetToHost = Buffer.from([0x12, 0x00, 0xff, 0x34]);
   const receivedAtHost = nextMessage(host, (_v, binary) => binary);
   client.send(packetToHost);
   const hostMessage = await receivedAtHost;
   assert.equal(hostMessage.isBinary, true);
-  assert.deepEqual(Buffer.from(hostMessage.value), packetToHost);
+  const envelope = Buffer.from(hostMessage.value);
+  assert.equal(envelope.readUInt32LE(0), clientRoom.peerId);
+  assert.deepEqual(envelope.subarray(4), packetToHost);
 
   const packetToClient = Buffer.from([0x22, 0x01, 0x03]);
   const receivedAtClient = nextMessage(client, (_v, binary) => binary);
