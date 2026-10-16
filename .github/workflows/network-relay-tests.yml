@@ -1,0 +1,33 @@
+name: Browser multiplayer relay tests
+
+on:
+  push:
+    branches:
+      - work/web-multiplayer-networking
+  pull_request:
+    branches:
+      - work/web-multiplayer-networking
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: networking/relay
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: networking/relay/package.json
+      - name: Install relay dependencies
+        run: npm install
+      - name: Run relay tests
+        run: npm test
