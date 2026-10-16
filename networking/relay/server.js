@@ -7,6 +7,7 @@ const { WebSocketServer, WebSocket } = require("ws");
 const PORT = Number.parseInt(process.env.PORT || "8787", 10);
 const MAX_PLAYERS = Math.max(2, Math.min(16, Number.parseInt(process.env.MAX_PLAYERS || "8", 10)));
 const MAX_MESSAGE_BYTES = 3000;
+const RELAY_PEER_HEADER_BYTES = 4;
 const ROOM_CODE_LENGTH = 6;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -17,6 +18,7 @@ function makeRoomCode() {
 
 function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS } = {}) {
   const rooms = new Map();
+  let nextPeerId = 1;
   const server = http.createServer((req, res) => {
     if (req.url === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
@@ -37,7 +39,7 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
     if (!room) return;
     ws.room = null;
     if (room.host === ws) {
-      for (const peer of room.clients) {
+      for (const peer of room.clients.values()) {
         peer.room = null;
         sendControl(peer, { type: "room_closed", reason: "host_disconnected" });
         if (peer.readyState === WebSocket.OPEN) peer.close(1000, "host disconnected");
@@ -46,8 +48,8 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
       rooms.delete(room.code);
       return;
     }
-    room.clients.delete(ws);
-    sendControl(room.host, { type: "peer_left", count: room.clients.size + 1 });
+    room.clients.delete(ws.peerId);
+    sendControl(room.host, { type: "peer_left", peerId: ws.peerId, count: room.clients.size + 1 });
   }
 
   function allocateCode() {
@@ -63,20 +65,18 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
       sendControl(ws, { type: "error", code: "invalid_control" });
       return;
     }
-
     if (message.type === "create") {
       if (ws.room) {
         sendControl(ws, { type: "error", code: "already_in_room" });
         return;
       }
       const code = allocateCode();
-      const room = { code, host: ws, clients: new Set(), maxPlayers };
+      const room = { code, host: ws, clients: new Map(), maxPlayers };
       rooms.set(code, room);
       ws.room = room;
       sendControl(ws, { type: "room_created", roomCode: code, maxPlayers: room.maxPlayers });
       return;
     }
-
     if (message.type === "join") {
       if (ws.room) {
         sendControl(ws, { type: "error", code: "already_in_room" });
@@ -92,24 +92,25 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
         sendControl(ws, { type: "error", code: "room_full" });
         return;
       }
-      room.clients.add(ws);
+      ws.peerId = nextPeerId++;
+      if (nextPeerId > 0xffffffff) nextPeerId = 1;
+      room.clients.set(ws.peerId, ws);
       ws.room = room;
-      sendControl(ws, { type: "room_joined", roomCode: code, role: "client", maxPlayers: room.maxPlayers });
-      sendControl(room.host, { type: "peer_joined", count: room.clients.size + 1 });
+      sendControl(ws, { type: "room_joined", roomCode: code, role: "client", peerId: ws.peerId, maxPlayers: room.maxPlayers });
+      sendControl(room.host, { type: "peer_joined", peerId: ws.peerId, count: room.clients.size + 1 });
       return;
     }
-
     if (message.type === "leave") {
       removePeer(ws);
       sendControl(ws, { type: "left_room" });
       return;
     }
-
     sendControl(ws, { type: "error", code: "unknown_control" });
   }
 
   wss.on("connection", (ws) => {
     ws.room = null;
+    ws.peerId = 0;
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
     ws.on("message", (data, isBinary) => {
@@ -120,16 +121,14 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
           return;
         }
         let message;
-        try {
-          message = JSON.parse(data.toString("utf8"));
-        } catch {
+        try { message = JSON.parse(data.toString("utf8")); }
+        catch {
           sendControl(ws, { type: "error", code: "invalid_json" });
           return;
         }
         handleControl(ws, message);
         return;
       }
-
       if (data.length === 0 || data.length > MAX_MESSAGE_BYTES) {
         sendControl(ws, { type: "error", code: "invalid_packet_size" });
         return;
@@ -139,12 +138,17 @@ function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS
         sendControl(ws, { type: "error", code: "not_in_room" });
         return;
       }
-
-      // This relay is intentionally role-aware but game-protocol-agnostic:
-      // clients send packets to the host; the host sends packets to all clients.
-      const recipients = ws === room.host ? room.clients : [room.host];
-      for (const peer of recipients) {
-        if (peer.readyState === WebSocket.OPEN) peer.send(data, { binary: true });
+      if (ws === room.host) {
+        for (const peer of room.clients.values()) {
+          if (peer.readyState === WebSocket.OPEN) peer.send(data, { binary: true });
+        }
+      } else {
+        // Host-side transport strips this four-byte little-endian relay peer ID
+        // before passing the remaining bytes to CoopDX packet decompression.
+        const envelope = Buffer.allocUnsafe(RELAY_PEER_HEADER_BYTES + data.length);
+        envelope.writeUInt32LE(ws.peerId, 0);
+        data.copy(envelope, RELAY_PEER_HEADER_BYTES);
+        if (room.host.readyState === WebSocket.OPEN) room.host.send(envelope, { binary: true });
       }
     });
     ws.on("close", () => removePeer(ws));
@@ -195,4 +199,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createRelay, makeRoomCode, MAX_MESSAGE_BYTES };
+module.exports = { createRelay, makeRoomCode, MAX_MESSAGE_BYTES, RELAY_PEER_HEADER_BYTES };
