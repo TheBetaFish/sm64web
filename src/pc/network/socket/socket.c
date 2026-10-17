@@ -3,6 +3,9 @@
 #include "pc/configfile.h"
 #include "pc/debuglog.h"
 #include "pc/djui/djui.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 static SOCKET sCurSocket = INVALID_SOCKET;
 static struct sockaddr_in6 sAddr[MAX_PLAYERS] = { 0 };
@@ -13,6 +16,11 @@ char gGetHostName[MAX_CONFIG_STRING] = "";
 
 #ifdef __EMSCRIPTEN__
 static bool sWebSoloMode = false;
+static bool sWebNetworkMode = false;
+struct WebPeerAddress { u32 peerId; };
+static struct WebPeerAddress sWebPeerAddresses[MAX_PLAYERS];
+static struct WebPeerAddress sWebCurrentAddress;
+static u8 sWebReceiveBuffer[PACKET_LENGTH + 4];
 #endif
 
 // Resolves a hostname to an IP address. Current limitation: It still only gets the first address it sees and returns.
@@ -140,14 +148,34 @@ static int socket_receive(SOCKET socket, struct sockaddr_in6* rxAddr, u8* buffer
 
 static bool ns_socket_initialize(enum NetworkType networkType, UNUSED bool reconnecting) {
 #ifdef __EMSCRIPTEN__
-    // Browsers cannot open the native UDP socket used by CoopDX. A one-player
-    // server still gets normal game/session initialization, without transport.
-    if (networkType == NT_SERVER) {
-        sWebSoloMode = true;
-        LOG_INFO("initialized browser solo session (network transport disabled)");
+    // Browser sessions share the lobby's single JavaScript-owned WebSocket.
+    // Room readiness is asynchronous, so network_init is allowed only after
+    // the UI has completed create/join on that same transport instance.
+    if (networkType == NT_NONE) {
+        sWebNetworkMode = false;
+        sWebSoloMode = false;
         return true;
     }
-    sWebSoloMode = false;
+    if (networkType == NT_SERVER || networkType == NT_CLIENT) {
+        int ready = EM_ASM_INT({
+            var t = window.sm64webRelayTransport;
+            if (!t || typeof t.isRoomReady !== "function" || !t.isRoomReady()) return 0;
+            var expected = $0 ? "host" : "client";
+            return t.getRole() === expected ? 1 : -1;
+        }, networkType == NT_SERVER);
+        if (ready != 1) {
+            LOG_ERROR("browser relay room is not ready for the requested game role");
+            return false;
+        }
+        sWebNetworkMode = true;
+        sWebSoloMode = false;
+        memset(sWebPeerAddresses, 0, sizeof(sWebPeerAddresses));
+        memset(&sWebCurrentAddress, 0, sizeof(sWebCurrentAddress));
+        // On clients, local slot 1 is the CoopDX server identity.
+        sWebPeerAddresses[1].peerId = 0;
+        LOG_INFO("initialized browser WebSocket packet transport");
+        return true;
+    }
 #endif
     // sanity check port
     unsigned int port = (networkType == NT_CLIENT) ? configJoinPort : configHostPort;
@@ -208,13 +236,24 @@ static bool ns_socket_initialize(enum NetworkType networkType, UNUSED bool recon
     return true;
 }
 
-static s64 ns_socket_get_id(UNUSED u8 localId) {
+static s64 ns_socket_get_id(u8 localId) {
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode && localId < MAX_PLAYERS) return (s64)sWebPeerAddresses[localId].peerId;
+#endif
+    UNUSED(localId);
     return 0;
 }
 
 static char* ns_socket_get_id_str(u8 localId) {
-    if (localId == UNKNOWN_LOCAL_INDEX) { localId = 0; }
     static char id_str[INET6_ADDRSTRLEN] = { 0 };
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) {
+        if (localId == UNKNOWN_LOCAL_INDEX || localId >= MAX_PLAYERS) localId = 0;
+        snprintf(id_str, sizeof(id_str), "relay-peer-%u", sWebPeerAddresses[localId].peerId);
+        return id_str;
+    }
+#endif
+    if (localId == UNKNOWN_LOCAL_INDEX) { localId = 0; }
     inet_ntop(AF_INET6, &sAddr[localId].sin6_addr, id_str, sizeof(id_str));
     return id_str;
 }
@@ -222,6 +261,13 @@ static char* ns_socket_get_id_str(u8 localId) {
 static void ns_socket_save_id(u8 localId, UNUSED s64 networkId) {
     SOFT_ASSERT(localId > 0);
     SOFT_ASSERT(localId < MAX_PLAYERS);
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) {
+        sWebPeerAddresses[localId] = sWebCurrentAddress;
+        LOG_INFO("saved browser relay peer %u for local id %d", sWebCurrentAddress.peerId, localId);
+        return;
+    }
+#endif
     sAddr[localId] = sAddr[0];
     LOG_INFO("saved addr for id %d", localId);
 }
@@ -229,27 +275,91 @@ static void ns_socket_save_id(u8 localId, UNUSED s64 networkId) {
 static void ns_socket_clear_id(u8 localId) {
     if (localId == 0) { return; }
     SOFT_ASSERT(localId < MAX_PLAYERS);
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) {
+        memset(&sWebPeerAddresses[localId], 0, sizeof(sWebPeerAddresses[localId]));
+        return;
+    }
+#endif
     memset(&sAddr[localId], 0, sizeof(struct sockaddr_in6));
     LOG_INFO("cleared addr for id %d", localId);
 }
 
 static void* ns_socket_dup_addr(u8 localIndex) {
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) {
+        if (localIndex >= MAX_PLAYERS) return NULL;
+        struct WebPeerAddress* address = malloc(sizeof(*address));
+        if (address) *address = sWebPeerAddresses[localIndex];
+        return address;
+    }
+#endif
     void* address = malloc(sizeof(struct sockaddr_in6));
-    memcpy(address, &sAddr[localIndex], sizeof(struct sockaddr_in6));
+    if (address) memcpy(address, &sAddr[localIndex], sizeof(struct sockaddr_in6));
     return address;
 }
 
 static bool ns_socket_match_addr(void* addr1, void* addr2) {
+    if (addr1 == NULL || addr2 == NULL) return addr1 == addr2;
+#ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) return !memcmp(addr1, addr2, sizeof(struct WebPeerAddress));
+#endif
     return !memcmp(addr1, addr2, sizeof(struct sockaddr_in6));
 }
 
 static void ns_socket_update(void) {
 #ifdef __EMSCRIPTEN__
-    if (sWebSoloMode) { return; }
+    if (sWebSoloMode) return;
+    if (sWebNetworkMode) {
+        if (gNetworkType == NT_NONE) return;
+        for (;;) {
+            int received = EM_ASM_INT({
+                var t = window.sm64webRelayTransport;
+                if (!t || typeof t.pollPacket !== "function") return 0;
+                var packet = t.pollPacket();
+                if (!packet) return 0;
+                if (packet.length > 3004) return -1;
+                HEAPU8.set(packet, $0);
+                return packet.length;
+            }, sWebReceiveBuffer);
+            if (received == 0) break;
+            if (received < 0) {
+                LOG_ERROR("browser relay packet exceeded receive buffer");
+                continue;
+            }
+            u16 dataLength = (u16)received;
+            u8 localIndex = UNKNOWN_LOCAL_INDEX;
+            if (gNetworkType == NT_SERVER) {
+                if (dataLength <= 4) {
+                    LOG_ERROR("browser relay packet missing peer envelope");
+                    continue;
+                }
+                u32 peerId = (u32)sWebReceiveBuffer[0]
+                    | ((u32)sWebReceiveBuffer[1] << 8)
+                    | ((u32)sWebReceiveBuffer[2] << 16)
+                    | ((u32)sWebReceiveBuffer[3] << 24);
+                if (peerId == 0) continue;
+                sWebCurrentAddress.peerId = peerId;
+                dataLength -= 4;
+                memmove(sWebReceiveBuffer, sWebReceiveBuffer + 4, dataLength);
+                for (u8 i = 1; i < MAX_PLAYERS; i++) {
+                    if (gNetworkPlayers[i].connected && sWebPeerAddresses[i].peerId == peerId) {
+                        localIndex = i;
+                        break;
+                    }
+                }
+            } else {
+                sWebCurrentAddress.peerId = 0;
+                localIndex = 1;
+            }
+            if (dataLength == 0 || dataLength > PACKET_LENGTH) continue;
+            network_receive(localIndex, &sWebCurrentAddress, sWebReceiveBuffer, dataLength);
+        }
+        return;
+    }
 #endif
     if (gNetworkType == NT_NONE) { return; }
     do {
-        // receive packet
         u8 data[PACKET_LENGTH + 1];
         u16 dataLength = 0;
         u8 localIndex = UNKNOWN_LOCAL_INDEX;
@@ -262,7 +372,16 @@ static void ns_socket_update(void) {
 
 static int ns_socket_send(u8 localIndex, void* address, u8* data, u16 dataLength) {
 #ifdef __EMSCRIPTEN__
-    if (sWebSoloMode) { return NO_ERROR; }
+    if (sWebSoloMode) return NO_ERROR;
+    if (sWebNetworkMode) {
+        if (data == NULL || dataLength == 0 || dataLength > PACKET_LENGTH) return SOCKET_ERROR;
+        return EM_ASM_INT({
+            var t = window.sm64webRelayTransport;
+            if (!t || typeof t.sendPacket !== "function") return -1;
+            try { return t.sendPacket(HEAPU8.slice($0, $0 + $1)) ? 0 : -1; }
+            catch (_) { return -1; }
+        }, data, dataLength) == 1 ? NO_ERROR : SOCKET_ERROR;
+    }
 #endif
     if (localIndex != 0) {
         if (gNetworkType == NT_SERVER && gNetworkPlayers[localIndex].type != NPT_CLIENT) { return SOCKET_ERROR; }
@@ -289,6 +408,13 @@ static void ns_socket_get_lobby_secret(char* destination, u32 destLength) {
 
 static void ns_socket_shutdown(UNUSED bool reconnecting) {
 #ifdef __EMSCRIPTEN__
+    if (sWebNetworkMode) {
+        sWebNetworkMode = false;
+        memset(sWebPeerAddresses, 0, sizeof(sWebPeerAddresses));
+        memset(&sWebCurrentAddress, 0, sizeof(sWebCurrentAddress));
+        LOG_INFO("browser relay network session shutdown");
+        return;
+    }
     if (sWebSoloMode) {
         sWebSoloMode = false;
         sCurSocket = INVALID_SOCKET;
