@@ -6,6 +6,7 @@ on:
     branches:
       - ci/emscripten-web-build
       - work/web-multiplayer-networking
+      - work/web-audio-experiment
 
 permissions:
   contents: read
