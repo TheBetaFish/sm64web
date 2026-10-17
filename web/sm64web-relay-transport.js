@@ -1,6 +1,10 @@
 (function (root) {
   "use strict";
 
+  var MAX_RELAY_PACKET_BYTES = 3004;
+  var MAX_QUEUED_PACKETS = 128;
+  var MAX_QUEUED_EVENTS = 256;
+
   function createTransport(WebSocketImpl) {
     var WS = WebSocketImpl || (root && root.WebSocket);
     var socket = null;
@@ -15,8 +19,19 @@
 
     function emit(type, detail) {
       var event = { type: type, detail: detail || null };
+      if (events.length >= MAX_QUEUED_EVENTS) events.shift();
       events.push(event);
       if (eventHandler) eventHandler(event);
+    }
+
+    function reportError(code) {
+      lastError = code;
+      emit("error", { code: code });
+    }
+
+    function resetRoom() {
+      roomCode = "";
+      role = "";
     }
 
     function connect(url) {
@@ -28,8 +43,7 @@
       events = [];
       packets = [];
       lastError = null;
-      roomCode = "";
-      role = "";
+      resetRoom();
       state = "connecting";
 
       var connection = new WS(url);
@@ -43,8 +57,9 @@
         if (socket === connection) {
           socket = null;
           state = "disconnected";
-          roomCode = "";
-          role = "";
+          resetRoom();
+          packets = [];
+          finishActiveClose = null;
         }
         emit("close");
       }
@@ -58,46 +73,65 @@
       connection.onmessage = function (event) {
         if (socket !== connection) return;
         if (typeof event.data === "string") {
+          var message;
           try {
-            var message = JSON.parse(event.data);
-            if (message.type === "room_created") {
-              roomCode = message.roomCode || "";
-              role = "host";
-            } else if (message.type === "room_joined") {
-              roomCode = message.roomCode || "";
-              role = "client";
-            } else if (message.type === "left_room" || message.type === "room_closed") {
-              roomCode = "";
-              role = "";
-            }
-            emit("control", message);
+            message = JSON.parse(event.data);
           } catch (_) {
-            lastError = "invalid_control_message";
-            emit("error", { code: lastError });
+            reportError("invalid_control_message");
+            return;
           }
-        } else if (event.data instanceof ArrayBuffer) {
-          packets.push(new Uint8Array(event.data.slice(0)));
-        } else if (ArrayBuffer.isView(event.data)) {
-          packets.push(new Uint8Array(
-            event.data.buffer,
-            event.data.byteOffset,
-            event.data.byteLength
-          ).slice());
+          if (!message || typeof message !== "object" || Array.isArray(message) ||
+              typeof message.type !== "string") {
+            reportError("invalid_control_message");
+            return;
+          }
+          if (message.type === "room_created" || message.type === "room_joined") {
+            if (typeof message.roomCode !== "string" || !message.roomCode) {
+              reportError("invalid_room_control");
+              return;
+            }
+            roomCode = message.roomCode;
+            role = message.type === "room_created" ? "host" : "client";
+          } else if (message.type === "left_room" || message.type === "room_closed") {
+            resetRoom();
+          }
+          emit("control", message);
         } else {
-          lastError = "unsupported_binary_message";
-          emit("error", { code: lastError });
+          var bytes = null;
+          if (event.data instanceof ArrayBuffer) {
+            bytes = new Uint8Array(event.data.slice(0));
+          } else if (ArrayBuffer.isView(event.data)) {
+            bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength).slice();
+          }
+          if (!bytes) {
+            reportError("unsupported_binary_message");
+            return;
+          }
+          if (bytes.byteLength === 0 || bytes.byteLength > MAX_RELAY_PACKET_BYTES) {
+            reportError("invalid_packet_size");
+            return;
+          }
+          if (packets.length >= MAX_QUEUED_PACKETS) {
+            reportError("packet_queue_overflow");
+            connection.close(1008, "packet queue overflow");
+            return;
+          }
+          packets.push(bytes);
         }
       };
       connection.onerror = function () {
         if (socket !== connection) return;
-        lastError = "websocket_error";
-        emit("error", { code: lastError });
+        reportError("websocket_error");
       };
       connection.onclose = finishClose;
     }
 
     function sendControl(message) {
       if (!socket || socket.readyState !== 1) return false;
+      if (!message || typeof message !== "object" || Array.isArray(message) ||
+          typeof message.type !== "string") {
+        throw new TypeError("control message must be an object with a string type");
+      }
       socket.send(JSON.stringify(message));
       return true;
     }
@@ -105,6 +139,7 @@
     function sendPacket(bytes) {
       if (!socket || socket.readyState !== 1) return false;
       if (!(bytes instanceof Uint8Array)) throw new TypeError("packet must be Uint8Array");
+      if (bytes.byteLength === 0 || bytes.byteLength > 3000) throw new RangeError("packet size must be 1..3000 bytes");
       socket.send(bytes.slice().buffer);
       return true;
     }
@@ -122,8 +157,7 @@
       var finish = finishActiveClose;
       socket = null;
       state = "disconnected";
-      roomCode = "";
-      role = "";
+      resetRoom();
       packets = [];
       if (old && (old.readyState === 0 || old.readyState === 1)) old.close();
       if (finish) finish();
@@ -137,24 +171,20 @@
       sendPacket: sendPacket,
       pollPacket: pollPacket,
       pollEvent: pollEvent,
-      setEventHandler: function (handler) {
-        eventHandler = typeof handler === "function" ? handler : null;
-      },
+      setEventHandler: function (handler) { eventHandler = typeof handler === "function" ? handler : null; },
       close: close,
       getState: function () { return state; },
       getLastError: function () { return lastError; },
       getRoomCode: function () { return roomCode; },
       getRole: function () { return role; },
-      isRoomReady: function () {
-        return roomCode !== "" && (role === "host" || role === "client");
-      },
+      isRoomReady: function () { return roomCode !== "" && (role === "host" || role === "client"); },
       getQueuedPacketCount: function () { return packets.length; },
       getQueuedEventCount: function () { return events.length; }
     };
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { createTransport: createTransport };
+    module.exports = { createTransport: createTransport, MAX_RELAY_PACKET_BYTES: MAX_RELAY_PACKET_BYTES };
   } else if (root) {
     root.sm64webRelayTransport = createTransport(root.WebSocket);
   }
