@@ -160,7 +160,7 @@ function setup(){
   }
   function relayConnectAndSend(message){
     var endpoint=relayUrl.value.trim();
-    if(!/^wss?:\\/\\//i.test(endpoint)){relayStatus.textContent="Relay URL must begin with ws:// or wss://.";return;}
+    if(!/^wss?:\/\//i.test(endpoint)){relayStatus.textContent="Relay URL must begin with ws:// or wss://.";return;}
     if(relaySocket&&relaySocket.readyState===WebSocket.OPEN){
       try{relaySocket.send(JSON.stringify(message));}catch(e){relayStatus.textContent="Could not send relay request: "+e.message;}
       return;
