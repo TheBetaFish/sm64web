@@ -92,6 +92,7 @@ jobs:
           cp web/rom-upload.js site/rom-upload.js
           cp web/sm64web.css site/sm64web.css
           cp web/sm64web-ui.js site/sm64web-ui.js
+          cp web/sm64web-relay-transport.js site/sm64web-relay-transport.js
           python3 - <<'PY'
           from pathlib import Path
           import re
