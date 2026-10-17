@@ -35,3 +35,6 @@ body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:full
 .sm64web-relay-actions button:disabled{opacity:.45;cursor:not-allowed}
 #sm64web-relay-status{flex:1 1 260px;font-size:11px;line-height:1.4;color:#d5e6ff}
 @media(max-width:700px){.sm64web-relay-fields label{flex-basis:100%}.sm64web-relay-actions{align-items:stretch}.sm64web-relay-actions button{flex:1 1 auto}}
+
+#sm64web-controls{flex-wrap:wrap}
+#sm64web-relay{flex:1 1 100%;min-width:0}
