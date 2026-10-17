@@ -60,6 +60,17 @@ static void djui_panel_main_play_solo(struct DjuiBase* caller) {
     djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_menu_back);
     djui_panel_add(caller, panel, NULL);
 }
+
+static void djui_panel_main_multiplayer(struct DjuiBase* caller) {
+    // Browser multiplayer setup lives in the HTML shell because WebSocket
+    // room creation is asynchronous. Bring that lobby into view instead of
+    // leaving the menu item disabled or pretending networking is ready.
+    EM_ASM({
+        if (typeof window.sm64webOpenMultiplayer === 'function') {
+            window.sm64webOpenMultiplayer();
+        }
+    });
+}
 #endif
 
 void djui_panel_main_create(struct DjuiBase* caller) {
@@ -83,8 +94,7 @@ void djui_panel_main_create(struct DjuiBase* caller) {
             struct DjuiButton* button1 = djui_button_create(body, "Play Solo", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_play_solo);
             if (!configExCoopTheme) { djui_base_set_location(&button1->base, 0, -30); }
             djui_cursor_input_controlled_center(&button1->base);
-            struct DjuiButton* buttonMulti = djui_button_create(body, "Multiplayer (coming soon)", DJUI_BUTTON_STYLE_NORMAL, NULL);
-            buttonMulti->base.enabled = false;
+            struct DjuiButton* buttonMulti = djui_button_create(body, "Multiplayer Lobby", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer);
             if (!configExCoopTheme) { djui_base_set_location(&buttonMulti->base, 0, -30); }
             struct DjuiButton* button3 = djui_button_create(body, DLANG(MAIN, OPTIONS), DJUI_BUTTON_STYLE_NORMAL, djui_panel_options_create);
             if (!configExCoopTheme) { djui_base_set_location(&button3->base, 0, -30); }
