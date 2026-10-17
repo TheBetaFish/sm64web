@@ -134,26 +134,7 @@ static void djui_panel_main_play_solo(struct DjuiBase* caller) {
     djui_panel_add(caller, panel, NULL);
 }
 
-static void djui_panel_main_multiplayer(struct DjuiBase* caller) {
-    struct DjuiThreePanel* panel = djui_panel_menu_create("MULTIPLAYER", false);
-    struct DjuiBase* body = djui_three_panel_get_body(panel);
-    struct DjuiText* instructions = djui_text_create(body, "Create a room and share its code, or enter a friend's code to join.");
-    djui_base_set_size_type(&instructions->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
-    djui_base_set_size(&instructions->base, 1.0f, 70.0f);
-    djui_base_set_color(&instructions->base, 220, 220, 220, 255);
-    sMultiplayerRoomCode = djui_inputbox_create(body, 7);
-    djui_base_set_size_type(&sMultiplayerRoomCode->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
-    djui_base_set_size(&sMultiplayerRoomCode->base, 1.0f, 40.0f);
-    djui_inputbox_set_text(sMultiplayerRoomCode, "");
-    sMultiplayerStatus = djui_text_create(body, "Relay multiplayer is experimental.");
-    djui_base_set_size_type(&sMultiplayerStatus->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
-    djui_base_set_size(&sMultiplayerStatus->base, 1.0f, 54.0f);
-    djui_base_set_color(&sMultiplayerStatus->base, 220, 220, 220, 255);
-    djui_button_create(body, "Create Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_create_room);
-    djui_button_create(body, "Join Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_join_room);
-    struct DjuiButton* back = djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_main_multiplayer_back);
-    djui_panel_add(caller, panel, &back->base);
-}
+
 #endif
 
 void djui_panel_main_create(struct DjuiBase* caller) {
