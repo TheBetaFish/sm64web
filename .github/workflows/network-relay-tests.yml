@@ -29,5 +29,7 @@ jobs:
           cache-dependency-path: networking/relay/package.json
       - name: Install relay dependencies
         run: npm install
+      - name: Check browser UI JavaScript syntax
+        run: node --check ../../web/sm64web-ui.js
       - name: Run relay tests
         run: npm test
