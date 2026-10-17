@@ -2,8 +2,8 @@
 "use strict";
 function createTransport(WebSocketImpl) {
   var WS = WebSocketImpl || (root && root.WebSocket);
-  var socket = null, events = [], packets = [], state = "disconnected", lastError = null;
-  function emit(type, detail) { events.push({type:type, detail:detail || null}); }
+  var socket = null, events = [], packets = [], state = "disconnected", lastError = null, eventHandler = null;
+  function emit(type, detail) { var event={type:type, detail:detail || null}; events.push(event); if (eventHandler) eventHandler(event); }
   function connect(url) {
     if (!WS) throw new Error("WebSocket unavailable");
     if (socket && (socket.readyState === 0 || socket.readyState === 1)) throw new Error("Connection already active");
@@ -26,7 +26,7 @@ function createTransport(WebSocketImpl) {
   function pollPacket() { return packets.length ? packets.shift() : null; }
   function pollEvent() { return events.length ? events.shift() : null; }
   function close() { if (socket) { var old=socket; socket=null; if(old.readyState===0||old.readyState===1) old.close(); } state="disconnected"; packets=[]; emit("close"); }
-  return {connect:connect,sendControl:sendControl,sendPacket:sendPacket,pollPacket:pollPacket,pollEvent:pollEvent,close:close,getState:function(){return state;},getLastError:function(){return lastError;},getQueuedPacketCount:function(){return packets.length;},getQueuedEventCount:function(){return events.length;}};
+  return {connect:connect,sendControl:sendControl,sendPacket:sendPacket,pollPacket:pollPacket,pollEvent:pollEvent,setEventHandler:function(handler){eventHandler=typeof handler==="function"?handler:null;},close:close,getState:function(){return state;},getLastError:function(){return lastError;},getQueuedPacketCount:function(){return packets.length;},getQueuedEventCount:function(){return events.length;}};
 }
 if (typeof module !== "undefined" && module.exports) module.exports={createTransport:createTransport};
 else if (root) root.sm64webRelayTransport=createTransport(root.WebSocket);
