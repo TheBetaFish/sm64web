@@ -1779,13 +1779,6 @@ static void update_game_sound(void) {
  */
 static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 #ifdef __EMSCRIPTEN__
-    // No sequence data is loaded in the browser's silent-audio build.
-    (void) player;
-    (void) seqId;
-    (void) arg2;
-    return;
-#endif
-#ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB TRACE: seq_player_play_sequence entered player=%u seq=%u arg=%u\n", player, seqId, arg2);
 #endif
     MUTEX_LOCK(gAudioThread);
