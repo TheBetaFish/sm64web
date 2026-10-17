@@ -100,7 +100,7 @@ jobs:
           page = Path("site/index.html")
           html = page.read_text()
           html = html.replace("</head>", '<link rel="stylesheet" href="sm64web.css?v=' + __import__("os").environ.get("GITHUB_SHA", "dev") + '"></head>', 1)
-          html = html.replace("</body>", '<script defer src="sm64web-ui.js?v=' + __import__("os").environ.get("GITHUB_SHA", "dev") + '"></script></body>', 1)
+          html = html.replace("</body>", '<script defer src="sm64web-relay-transport.js?v=' + __import__("os").environ.get("GITHUB_SHA", "dev") + '"></script><script defer src="sm64web-ui.js?v=' + __import__("os").environ.get("GITHUB_SHA", "dev") + '"></script></body>', 1)
           # Load the picker before Emscripten's generated runtime script so it
           # can register a preRun hook and pause startup until a ROM is selected.
           html, count = re.subn(
