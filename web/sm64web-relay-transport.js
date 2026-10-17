@@ -12,7 +12,7 @@ function createTransport(WebSocketImpl) {
     socket.onopen = function(){ state="connected"; emit("open"); };
     socket.onmessage = function(e) {
       if (typeof e.data === "string") {
-        try { emit("control", JSON.parse(e.data)); }
+        try { var message=JSON.parse(e.data); if(message.type==="room_created"){roomCode=message.roomCode||"";role="host";} else if(message.type==="room_joined"){roomCode=message.roomCode||"";role="client";} else if(message.type==="left_room"||message.type==="room_closed"){roomCode="";role="";} emit("control", message); }
         catch (_) { lastError="invalid_control_message"; emit("error", {code:lastError}); }
       } else if (e.data instanceof ArrayBuffer) packets.push(new Uint8Array(e.data));
       else if (ArrayBuffer.isView(e.data)) packets.push(new Uint8Array(e.data.buffer,e.data.byteOffset,e.data.byteLength).slice());
