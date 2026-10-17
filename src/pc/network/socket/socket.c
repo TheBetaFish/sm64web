@@ -245,11 +245,10 @@ static bool ns_socket_initialize(enum NetworkType networkType, UNUSED bool recon
     return true;
 }
 
-static s64 ns_socket_get_id(u8 localId) {
+static s64 ns_socket_get_id(UNUSED u8 localId) {
 #ifdef __EMSCRIPTEN__
     if (sWebNetworkMode && localId < MAX_PLAYERS) return (s64)sWebPeerAddresses[localId].peerId;
 #endif
-    UNUSED(localId);
     return 0;
 }
 
