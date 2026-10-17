@@ -58,3 +58,6 @@ body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:full
 .sm64web-multiplayer-dialog .sm64web-relay-actions{gap:8px}
 .sm64web-multiplayer-dialog .sm64web-relay-actions button{flex:1 1 130px;min-height:40px;font-size:13px}
 .sm64web-multiplayer-dialog #sm64web-relay-status{flex-basis:100%;padding:10px;background:#102d70;border:1px solid #d5e6ff;font-size:12px}
+
+/* Relay controls are a hidden transport backend; room interaction is rendered by DJUI in-game. */
+#sm64web-relay{display:none!important}
