@@ -98,3 +98,19 @@ This document defines the implementation order for browser multiplayer in sm64we
 - Do not claim native-client crossplay until the UDP/WebSocket boundary is implemented and tested.
 - Do not mix transport bring-up with unrelated rendering, input, save/load, or UI fixes.
 - Do not treat a successful web build as proof that networking works.
+
+## Phase 1 audit results (source-confirmed)
+
+- `NetworkSystem.send` receives the compressed packet returned by `packet_compress()`; `network_receive()` expects that compressed byte sequence and performs decompression and hash validation itself.
+- The native socket implementation copies the server's address into `sAddr[localIndex]` through `save_id()`. Reliable retries call `network_duplicate_address(localIndex)`, so a browser address object must be owned, copyable, and comparable; it cannot be a pointer to a transient JavaScript event buffer.
+- The server accepts initial join/control packet types from `UNKNOWN_LOCAL_INDEX`. Once the join handshake identifies a player, CoopDX's own `network_player_connected()` and `save_id()` path must remain responsible for assigning and associating player slots.
+- `packet_receive()` sends ACKs before processing most packet types and validates the source address against `gNetworkServerAddr` on clients. Browser transport must preserve a stable server address identity for host-originated packets and reliable retransmissions.
+- For this transport's server-broadcast model, clients send gameplay packets to the host; the host forwards/broadcasts through CoopDX's normal packet path. The relay's peer-ID envelope is relay framing only and must be removed before `network_receive()`. The peer ID must map to a stable per-connection address handle, not directly to a CoopDX global player index.
+- The current Emscripten workflow uses Emscripten 3.1.64 and does not enable a WebSocket API flag or compile a browser transport. The existing browser solo path is a no-op transport branch inside `socket.c`; native UDP code should stay unchanged.
+- `network_init()` calls the selected system's `initialize()` synchronously, while WebSocket readiness and room membership are asynchronous. A bridge therefore needs explicit states (disconnected, connecting, room-ready, failed/closed) and must not report transport initialization complete until the socket and requested room operation have succeeded.
+- The relay currently accepts binary payloads up to 3000 bytes. Client-to-host messages add a four-byte little-endian relay peer ID outside the CoopDX payload; host-to-client messages are forwarded without that envelope. The host adapter must validate and strip the four-byte envelope before delivering bytes to CoopDX.
+
+## Implementation gate before writing the C adapter
+
+Do not select the browser transport merely because the room UI has a WebSocket connection. The game and UI must share one transport lifecycle; otherwise the UI can create a room on one socket while CoopDX sends through another. The next implementation should first introduce a single JavaScript-owned relay connection/queue API, then add the C adapter that consumes it from `NetworkSystem.update()`. The adapter should be isolated behind `__EMSCRIPTEN__`, preserve the native socket implementation, and have tests for binary queue ordering, peer-handle duplication/matching, and close/error cleanup before it is selected by normal game initialization.
+
