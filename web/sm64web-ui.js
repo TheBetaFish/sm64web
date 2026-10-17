@@ -11,16 +11,28 @@ function setup(){
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
-  // Called by the in-game Multiplayer Lobby menu entry.
+  // Called by the in-game Multiplayer Lobby menu entry. Keep room setup
+  // inside the game viewport rather than sending players to controls below it.
+  var multiplayerOverlay=document.createElement("div");
+  multiplayerOverlay.id="sm64web-multiplayer-overlay";
+  multiplayerOverlay.hidden=true;
+  multiplayerOverlay.innerHTML='<div class="sm64web-multiplayer-dialog" role="dialog" aria-modal="true" aria-label="Multiplayer"><div class="sm64web-multiplayer-heading"><strong>SUPER MARIO 64 — MULTIPLAYER</strong><button type="button" id="sm64web-multiplayer-close" aria-label="Close multiplayer">Back</button></div><p class="sm64web-multiplayer-note">Create a room and share its code, or enter a friend’s code to join.</p><div id="sm64web-multiplayer-slot"></div></div>';
+  stage.appendChild(multiplayerOverlay);
+  document.getElementById("sm64web-multiplayer-close").addEventListener("click",function(){multiplayerOverlay.hidden=true;status("Multiplayer menu closed.");});
   window.sm64webOpenMultiplayer=function(){
     var lobby=document.getElementById("sm64web-relay");
-    if(lobby){
-      lobby.scrollIntoView({behavior:"smooth",block:"center"});
-      var url=document.getElementById("sm64web-relay-url");
-      if(url)url.focus({preventScroll:true});
-      status("Multiplayer lobby opened. Create or join a room below; a public relay must be configured for online play.");
+    var slot=document.getElementById("sm64web-multiplayer-slot");
+    if(lobby&&slot){
+      if(lobby.parentNode!==slot)slot.appendChild(lobby);
+      multiplayerOverlay.hidden=false;
+      status("Multiplayer menu opened.");
+      var code=document.getElementById("sm64web-room-code");
+      if(code)code.focus({preventScroll:true});
     }
   };
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape"&&!multiplayerOverlay.hidden){multiplayerOverlay.hidden=true;status("Multiplayer menu closed.");}
+  });
   // Right-click toggles camera mode; it is a click, not a hold modifier.
   // Request/exit Pointer Lock directly from the user gesture so browsers allow it.
   canvas.addEventListener("contextmenu",function(e){e.preventDefault();});
