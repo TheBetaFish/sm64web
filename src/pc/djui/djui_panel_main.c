@@ -1,3 +1,4 @@
+#include <string.h>
 #include "djui.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
