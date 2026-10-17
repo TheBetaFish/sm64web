@@ -56,19 +56,44 @@ function setup(){
     if(dy < -threshold)tapCameraKey("ArrowUp");
     else if(dy > threshold)tapCameraKey("ArrowDown");
   });
+  var pendingMouseCapture=null;
+  var mouseCaptureRuntimeHooked=false;
+  function api(){return window.Module||{};}
+  function syncNativeMouseCapture(locked){
+    var m=api();
+    pendingMouseCapture=locked?1:0;
+    if(typeof m._sm64web_set_mouse_capture!=="function")return;
+    // Emscripten export wrappers exist before the runtime is initialized, but
+    // calling them at that stage aborts the entire WebAssembly application.
+    if(m.calledRun!==true&&m.runtimeInitialized!==true){
+      if(!mouseCaptureRuntimeHooked){
+        mouseCaptureRuntimeHooked=true;
+        var previous=m.onRuntimeInitialized;
+        m.onRuntimeInitialized=function(){
+          if(typeof previous==="function")previous.apply(this,arguments);
+          var live=api();
+          if(pendingMouseCapture!==null&&typeof live._sm64web_set_mouse_capture==="function"&&(live.calledRun===true||live.runtimeInitialized===true)){
+            var desired=pendingMouseCapture;
+            pendingMouseCapture=null;
+            live._sm64web_set_mouse_capture(desired);
+          }
+        };
+      }
+      return;
+    }
+    var desired=pendingMouseCapture;
+    pendingMouseCapture=null;
+    m._sm64web_set_mouse_capture(desired);
+  }
   document.addEventListener("pointerlockchange",function(){
     var locked=document.pointerLockElement===canvas;
-    var m=api();
-    if(typeof m._sm64web_set_mouse_capture==="function"){
-      m._sm64web_set_mouse_capture(locked?1:0);
-    }
+    syncNativeMouseCapture(locked);
     if(!locked){
       Object.keys(cameraKeys).forEach(releaseCameraKey);
       Object.keys(cameraKeyTimers).forEach(function(key){clearTimeout(cameraKeyTimers[key]);delete cameraKeyTimers[key];});
     }
     status(locked?"Camera locked — mouse movement is mapped to arrow keys; right-click to release.":"Camera unlocked.");
   });
-  function api(){return window.Module||{};}
   var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
   function startSolo(){var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}
   function saveProgress(){
