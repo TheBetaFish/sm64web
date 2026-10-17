@@ -196,3 +196,61 @@ test("client leave and disconnect clean up membership; host disconnect closes re
   assert.equal(relay.rooms.has(room.roomCode), false);
 });
 
+test("unjoined clients cannot send binary packets and malformed controls are rejected", async (t) => {
+  const relay = createRelay({ port: 0, maxPlayers: 3 });
+  const address = await relay.listen();
+  const url = "ws://127.0.0.1:" + address.port;
+  const sockets = [];
+  t.after(async () => {
+    for (const ws of sockets) if (ws.readyState === WebSocket.OPEN) ws.close();
+    await relay.close();
+  });
+
+  const client = await connect(url); sockets.push(client);
+  const notInRoom = nextMessage(client, (v) => v && v.type === "error" && v.code === "not_in_room");
+  client.send(Buffer.from([0x01, 0x02]), { binary: true });
+  assert.equal((await notInRoom).value.code, "not_in_room");
+
+  const invalidControl = nextMessage(client, (v) => v && v.type === "error" && v.code === "invalid_control");
+  sendControl(client, []);
+  assert.equal((await invalidControl).value.code, "invalid_control");
+
+  const unknown = nextMessage(client, (v) => v && v.type === "error" && v.code === "unknown_control");
+  sendControl(client, { type: "make-it-up" });
+  assert.equal((await unknown).value.code, "unknown_control");
+});
+
+test("host packets are broadcast only to clients in the same room", async (t) => {
+  const relay = createRelay({ port: 0, maxPlayers: 4 });
+  const address = await relay.listen();
+  const url = "ws://127.0.0.1:" + address.port;
+  const sockets = [];
+  t.after(async () => {
+    for (const ws of sockets) if (ws.readyState === WebSocket.OPEN) ws.close();
+    await relay.close();
+  });
+
+  async function createRoom() {
+    const host = await connect(url); sockets.push(host);
+    const created = nextMessage(host, (v) => v && v.type === "room_created");
+    sendControl(host, { type: "create" });
+    return { host, room: (await created).value };
+  }
+  const a = await createRoom();
+  const b = await createRoom();
+
+  const clientA = await connect(url); sockets.push(clientA);
+  const joinedA = nextMessage(clientA, (v) => v && v.type === "room_joined");
+  sendControl(clientA, { type: "join", roomCode: a.room.roomCode });
+  await joinedA;
+
+  const received = nextMessage(clientA, (_v, binary) => binary);
+  const isolated = nextMessage(b.host, (_v, binary) => binary, 250).then(
+    () => false,
+    () => true
+  );
+  const packet = Buffer.from([0x80, 0x00, 0x7f]);
+  a.host.send(packet, { binary: true });
+  assert.deepEqual(Buffer.from((await received).value), packet);
+  assert.equal(await isolated, true);
+});
