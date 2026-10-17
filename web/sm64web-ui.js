@@ -11,28 +11,6 @@ function setup(){
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
-  // Called by the in-game Multiplayer Lobby menu entry. Keep room setup
-  // inside the game viewport rather than sending players to controls below it.
-  var multiplayerOverlay=document.createElement("div");
-  multiplayerOverlay.id="sm64web-multiplayer-overlay";
-  multiplayerOverlay.hidden=true;
-  multiplayerOverlay.innerHTML='<div class="sm64web-multiplayer-dialog" role="dialog" aria-modal="true" aria-label="Multiplayer"><div class="sm64web-multiplayer-heading"><strong>SUPER MARIO 64 — MULTIPLAYER</strong><button type="button" id="sm64web-multiplayer-close" aria-label="Close multiplayer">Back</button></div><p class="sm64web-multiplayer-note">Create a room and share its code, or enter a friend’s code to join.</p><div id="sm64web-multiplayer-slot"></div></div>';
-  stage.appendChild(multiplayerOverlay);
-  document.getElementById("sm64web-multiplayer-close").addEventListener("click",function(){multiplayerOverlay.hidden=true;status("Multiplayer menu closed.");});
-  window.sm64webOpenMultiplayer=function(){
-    var lobby=document.getElementById("sm64web-relay");
-    var slot=document.getElementById("sm64web-multiplayer-slot");
-    if(lobby&&slot){
-      if(lobby.parentNode!==slot)slot.appendChild(lobby);
-      multiplayerOverlay.hidden=false;
-      status("Multiplayer menu opened.");
-      var code=document.getElementById("sm64web-room-code");
-      if(code)code.focus({preventScroll:true});
-    }
-  };
-  document.addEventListener("keydown",function(e){
-    if(e.key==="Escape"&&!multiplayerOverlay.hidden){multiplayerOverlay.hidden=true;status("Multiplayer menu closed.");}
-  });
   // Right-click toggles camera mode; it is a click, not a hold modifier.
   // Request/exit Pointer Lock directly from the user gesture so browsers allow it.
   canvas.addEventListener("contextmenu",function(e){e.preventDefault();});
@@ -158,11 +136,19 @@ function setup(){
   function syncNetworkButtons(){var ready=!!(relayTransport&&relayTransport.isRoomReady());if(startHost)startHost.disabled=!ready||relayTransport.getRole()!=="host";if(startClient)startClient.disabled=!ready||relayTransport.getRole()!=="client";}
   var relayRoom=null,relayRole=null,relayPeerCount=1,relayPending=null;
   var relayTransport=window.sm64webRelayTransport;
+  function callNative(name,value){
+    var m=api();
+    if(typeof m[name]!=="function"||typeof m.allocateUTF8!=="function"||typeof m._free!=="function")return;
+    var ptr=m.allocateUTF8(String(value));
+    try{m[name](ptr);}finally{m._free(ptr);}
+  }
+  function nativeStatus(message){callNative("_sm64web_set_multiplayer_status",message);}
+  function nativeRoomCode(code){callNative("_sm64web_set_room_code",code);}
   function relayMessage(message){
     if(!relayStatus)return;
     if(message.type==="room_created"){
       relayRoom=message.roomCode;relayRole="host";relayPeerCount=1;roomInput.value=relayRoom;
-      relayStatus.textContent="Room "+relayRoom+" created. Share the code with a friend to join.";
+      relayStatus.textContent="Room "+relayRoom+" created. Share the code with a friend to join.";nativeRoomCode(relayRoom);
       leaveRoom.disabled=false;syncNetworkButtons();
     }else if(message.type==="room_joined"){
       relayRoom=message.roomCode;relayRole="client";roomInput.value=relayRoom;relayPeerCount=2;
@@ -183,6 +169,7 @@ function setup(){
     }else if(message.type==="error"){
       relayStatus.textContent="Relay error: "+String(message.code||"unknown_error").replace(/_/g," ");
     }
+    nativeStatus(relayStatus.textContent);
   }
   if(relayTransport&&typeof relayTransport.setEventHandler==="function"){
     relayTransport.setEventHandler(function(event){
@@ -197,6 +184,7 @@ function setup(){
         relayRoom=null;relayRole=null;leaveRoom.disabled=true;syncNetworkButtons();
         relayStatus.textContent="Multiplayer server disconnected. Try again in a moment."
       }
+      nativeStatus(relayStatus.textContent);
     });
   }
   function startGameNetwork(hostRole){
@@ -238,6 +226,21 @@ function setup(){
     if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){relayStatus.textContent="Enter a valid six-character room code.";return;}
     relayPending=null;relayConnectAndSend({type:"join",roomCode:code});
   });
+  // Called by native CoopDX DJUI buttons. HTML is only the transport bridge;
+  // the visible room menu and room-code input stay inside the game UI.
+  window.sm64webSetMultiplayerStatus=nativeStatus;
+  window.sm64webCreateRoom=function(){
+    if(relayRoom){nativeStatus("Leave the current room before creating another.");return;}
+    relayPending=null;relayConnectAndSend({type:"create"});
+    nativeStatus(relayStatus.textContent);
+  };
+  window.sm64webJoinRoom=function(code){
+    if(relayRoom){nativeStatus("Leave the current room before joining another.");return;}
+    code=String(code||"").trim().toUpperCase();
+    if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){nativeStatus("Enter a valid six-character room code.");return;}
+    relayPending=null;relayConnectAndSend({type:"join",roomCode:code});
+    nativeStatus(relayStatus.textContent);
+  };
   leaveRoom.addEventListener("click",function(){
     if(relayTransport&&relayTransport.sendControl({type:"leave"}))return;
     relayRoom=null;relayRole=null;leaveRoom.disabled=true;relayStatus.textContent="Relay disconnected.";
