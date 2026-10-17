@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: browser-network-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-network-build:
     runs-on: ubuntu-22.04
