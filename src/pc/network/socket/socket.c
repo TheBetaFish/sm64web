@@ -163,6 +163,15 @@ static bool ns_socket_initialize(enum NetworkType networkType, UNUSED bool recon
             var expected = $0 ? "host" : "client";
             return t.getRole() === expected ? 1 : -1;
         }, networkType == NT_SERVER);
+        if (ready == 0 && networkType == NT_SERVER) {
+            // Preserve the existing browser solo mode when no relay room has
+            // been created. The exported multiplayer entry point checks room
+            // readiness before calling network_init.
+            sWebSoloMode = true;
+            sWebNetworkMode = false;
+            LOG_INFO("initialized browser solo session (network transport disabled)");
+            return true;
+        }
         if (ready != 1) {
             LOG_ERROR("browser relay room is not ready for the requested game role");
             return false;
@@ -378,7 +387,7 @@ static int ns_socket_send(u8 localIndex, void* address, u8* data, u16 dataLength
         return EM_ASM_INT({
             var t = window.sm64webRelayTransport;
             if (!t || typeof t.sendPacket !== "function") return -1;
-            try { return t.sendPacket(HEAPU8.slice($0, $0 + $1)) ? 0 : -1; }
+            try { return t.sendPacket(HEAPU8.slice($0, $0 + $1)) ? 1 : -1; }
             catch (_) { return -1; }
         }, data, dataLength) == 1 ? NO_ERROR : SOCKET_ERROR;
     }
