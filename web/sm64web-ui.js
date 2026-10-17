@@ -7,7 +7,7 @@ function setup(){
   header.innerHTML='<div class="sm64web-brand"><span class="sm64web-mark">64</span><div>sm64web<div class="sm64web-subtitle">Experimental browser build</div></div></div><span class="sm64web-status">LOCAL ROM · SOLO PLAY</span>';
   var stage=document.createElement("main");stage.id="sm64web-stage";stage.setAttribute("aria-label","Super Mario 64 game viewport");
   var controls=document.createElement("footer");controls.id="sm64web-controls";
-  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div><section id="sm64web-relay" aria-label="Experimental multiplayer relay"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="ws://localhost:8787/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Relay disconnected. Game packets are not connected yet.</span></div></section>';
+  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div><section id="sm64web-relay" aria-label="Multiplayer"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="wss://sm64web-relay.onrender.com/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Multiplayer server not connected.</span></div></section>';
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
@@ -133,8 +133,8 @@ function setup(){
     };
     reader.readAsText(file);
   });
-  // This lobby exercises the relay control protocol only. Binary game packets
-  // are not wired into CoopDX's NetworkSystem yet.
+  // Multiplayer lobby controls use the hosted relay by default. Game packet
+  // synchronization remains experimental until verified in two browser sessions.
   var relayUrl=document.getElementById("sm64web-relay-url");
   var roomInput=document.getElementById("sm64web-room-code");
   var relayStatus=document.getElementById("sm64web-relay-status");
@@ -150,15 +150,15 @@ function setup(){
     if(!relayStatus)return;
     if(message.type==="room_created"){
       relayRoom=message.roomCode;relayRole="host";relayPeerCount=1;roomInput.value=relayRoom;
-      relayStatus.textContent="Room "+relayRoom+" created. Waiting for players; game packets are not connected yet.";
+      relayStatus.textContent="Room "+relayRoom+" created. Share the code with a friend to join.";
       leaveRoom.disabled=false;syncNetworkButtons();
     }else if(message.type==="room_joined"){
       relayRoom=message.roomCode;relayRole="client";roomInput.value=relayRoom;relayPeerCount=2;
-      relayStatus.textContent="Joined room "+relayRoom+". Game packets are not connected yet.";
+      relayStatus.textContent="Joined room "+relayRoom+". Waiting for host.";
       leaveRoom.disabled=false;syncNetworkButtons();
     }else if(message.type==="peer_joined"){
       relayPeerCount=message.count;
-      relayStatus.textContent="Room "+relayRoom+": "+relayPeerCount+" participants. Game packets are not connected yet.";
+      relayStatus.textContent="Room "+relayRoom+": "+relayPeerCount+" players connected.";
     }else if(message.type==="peer_left"){
       relayPeerCount=message.count;
       relayStatus.textContent="Room "+relayRoom+": "+relayPeerCount+" participants.";
@@ -180,10 +180,10 @@ function setup(){
       }else if(event.type==="control"){
         relayMessage(event.detail);
       }else if(event.type==="error"){
-        relayStatus.textContent="Relay connection error: "+String(event.detail&&event.detail.code||"unknown error");
+        relayStatus.textContent="Could not reach the multiplayer server. It may be offline; try again later.";
       }else if(event.type==="close"){
         relayRoom=null;relayRole=null;leaveRoom.disabled=true;syncNetworkButtons();
-        relayStatus.textContent="Relay disconnected."
+        relayStatus.textContent="Multiplayer server disconnected. Try again in a moment."
       }
     });
   }
@@ -211,9 +211,9 @@ function setup(){
       relayPending=message;relayStatus.textContent="Connecting to relay…";return;
     }
     try{
-      relayPending=message;relayStatus.textContent="Connecting to "+endpoint+"…";
+      relayPending=message;relayStatus.textContent="Connecting to multiplayer server…";
       relayTransport.connect(endpoint);
-    }catch(e){relayPending=null;relayStatus.textContent="Could not connect to relay: "+e.message;}
+    }catch(e){relayPending=null;relayStatus.textContent="Could not reach the multiplayer server. It may not be online yet.";}
   }
   syncNetworkButtons();
   createRoom.addEventListener("click",function(){
