@@ -131,7 +131,8 @@ function setup(){
   var createRoom=document.getElementById("sm64web-create-room");
   var joinRoom=document.getElementById("sm64web-join-room");
   var leaveRoom=document.getElementById("sm64web-leave-room");
-  var relaySocket=null,relayRoom=null,relayRole=null,relayPeerCount=1,relayPending=null;
+  var relayRoom=null,relayRole=null,relayPeerCount=1,relayPending=null;
+  var relayTransport=window.sm64webRelayTransport;
   function relayMessage(message){
     if(!relayStatus)return;
     if(message.type==="room_created"){
@@ -158,39 +159,36 @@ function setup(){
       relayStatus.textContent="Relay error: "+String(message.code||"unknown_error").replace(/_/g," ");
     }
   }
-  function relayConnectAndSend(message){
-    var endpoint=relayUrl.value.trim();
-    if(!/^wss?:\/\//i.test(endpoint)){relayStatus.textContent="Relay URL must begin with ws:// or wss://.";return;}
-    if(relaySocket&&relaySocket.readyState===WebSocket.OPEN){
-      try{relaySocket.send(JSON.stringify(message));}catch(e){relayStatus.textContent="Could not send relay request: "+e.message;}
-      return;
-    }
-    if(relaySocket&&relaySocket.readyState===WebSocket.CONNECTING){
-      relayStatus.textContent="Connecting to relay…";
-      relayPending=message;return;
-    }
-    try{
-      relayStatus.textContent="Connecting to "+endpoint+"…";
-      relaySocket=new WebSocket(endpoint);
-      relaySocket.binaryType="arraybuffer";
-      relaySocket.onopen=function(){
+  if(relayTransport&&typeof relayTransport.setEventHandler==="function"){
+    relayTransport.setEventHandler(function(event){
+      if(event.type==="open"){
         relayStatus.textContent="Relay connected.";
-        if(relayPending){var queued=relayPending;relayPending=null;relaySocket.send(JSON.stringify(queued));}
-        else relaySocket.send(JSON.stringify(message));
-      };
-      relaySocket.onmessage=function(event){
-        if(typeof event.data!=="string"){
-          relayStatus.textContent="Binary relay packet received, but game transport is not connected yet.";
-          return;
-        }
-        try{relayMessage(JSON.parse(event.data));}catch(_){relayStatus.textContent="Relay sent an invalid control message.";}
-      };
-      relaySocket.onerror=function(){relayStatus.textContent="Relay connection failed. Check the URL and that the relay server is running."};
-      relaySocket.onclose=function(){
+        if(relayPending){var queued=relayPending;relayPending=null;if(!relayTransport.sendControl(queued))relayStatus.textContent="Relay connection closed before the request could be sent.";}
+      }else if(event.type==="control"){
+        relayMessage(event.detail);
+      }else if(event.type==="error"){
+        relayStatus.textContent="Relay connection error: "+String(event.detail&&event.detail.code||"unknown error");
+      }else if(event.type==="close"){
         relayRoom=null;relayRole=null;leaveRoom.disabled=true;
         relayStatus.textContent="Relay disconnected.";
-      };
-    }catch(e){relayStatus.textContent="Could not connect to relay: "+e.message;}
+      }
+    });
+  }
+  function relayConnectAndSend(message){
+    if(!relayTransport){relayStatus.textContent="Relay transport bridge is not loaded.";return;}
+    var endpoint=relayUrl.value.trim();
+    if(!/^wss?:\/\//i.test(endpoint)){relayStatus.textContent="Relay URL must begin with ws:// or wss://.";return;}
+    if(relayTransport.getState()==="connected"){
+      if(!relayTransport.sendControl(message))relayStatus.textContent="Could not send relay request.";
+      return;
+    }
+    if(relayTransport.getState()==="connecting"){
+      relayPending=message;relayStatus.textContent="Connecting to relay…";return;
+    }
+    try{
+      relayPending=message;relayStatus.textContent="Connecting to "+endpoint+"…";
+      relayTransport.connect(endpoint);
+    }catch(e){relayPending=null;relayStatus.textContent="Could not connect to relay: "+e.message;}
   }
   createRoom.addEventListener("click",function(){
     if(relayRoom){relayStatus.textContent="Leave the current room before creating another.";return;}
@@ -203,8 +201,8 @@ function setup(){
     relayPending=null;relayConnectAndSend({type:"join",roomCode:code});
   });
   leaveRoom.addEventListener("click",function(){
-    if(relaySocket&&relaySocket.readyState===WebSocket.OPEN)relaySocket.send(JSON.stringify({type:"leave"}));
-    else{relayRoom=null;relayRole=null;leaveRoom.disabled=true;relayStatus.textContent="Relay disconnected.";}
+    if(relayTransport&&relayTransport.sendControl({type:"leave"}))return;
+    relayRoom=null;relayRole=null;leaveRoom.disabled=true;relayStatus.textContent="Relay disconnected.";
   });
   roomInput.addEventListener("input",function(){roomInput.value=roomInput.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,"").slice(0,6);});
   var btn=document.getElementById("sm64web-fullscreen");
