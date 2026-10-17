@@ -7,7 +7,7 @@ function setup(){
   header.innerHTML='<div class="sm64web-brand"><span class="sm64web-mark">64</span><div>sm64web<div class="sm64web-subtitle">Experimental browser build</div></div></div><span class="sm64web-status">LOCAL ROM · SOLO PLAY</span>';
   var stage=document.createElement("main");stage.id="sm64web-stage";stage.setAttribute("aria-label","Super Mario 64 game viewport");
   var controls=document.createElement("footer");controls.id="sm64web-controls";
-  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div><section id="sm64web-relay" aria-label="Experimental multiplayer relay"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="ws://localhost:8787/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><span id="sm64web-relay-status" role="status">Relay disconnected. Game packets are not connected yet.</span></div></section>';
+  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div><section id="sm64web-relay" aria-label="Experimental multiplayer relay"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="ws://localhost:8787/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Relay disconnected. Game packets are not connected yet.</span></div></section>';
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
@@ -131,6 +131,9 @@ function setup(){
   var createRoom=document.getElementById("sm64web-create-room");
   var joinRoom=document.getElementById("sm64web-join-room");
   var leaveRoom=document.getElementById("sm64web-leave-room");
+  var startHost=document.getElementById("sm64web-start-host");
+  var startClient=document.getElementById("sm64web-start-client");
+  function syncNetworkButtons(){var ready=!!(relayTransport&&relayTransport.isRoomReady());if(startHost)startHost.disabled=!ready||relayTransport.getRole()!=="host";if(startClient)startClient.disabled=!ready||relayTransport.getRole()!=="client";}
   var relayRoom=null,relayRole=null,relayPeerCount=1,relayPending=null;
   var relayTransport=window.sm64webRelayTransport;
   function relayMessage(message){
@@ -138,11 +141,11 @@ function setup(){
     if(message.type==="room_created"){
       relayRoom=message.roomCode;relayRole="host";relayPeerCount=1;roomInput.value=relayRoom;
       relayStatus.textContent="Room "+relayRoom+" created. Waiting for players; game packets are not connected yet.";
-      leaveRoom.disabled=false;
+      leaveRoom.disabled=false;syncNetworkButtons();
     }else if(message.type==="room_joined"){
       relayRoom=message.roomCode;relayRole="client";roomInput.value=relayRoom;relayPeerCount=2;
       relayStatus.textContent="Joined room "+relayRoom+". Game packets are not connected yet.";
-      leaveRoom.disabled=false;
+      leaveRoom.disabled=false;syncNetworkButtons();
     }else if(message.type==="peer_joined"){
       relayPeerCount=message.count;
       relayStatus.textContent="Room "+relayRoom+": "+relayPeerCount+" participants. Game packets are not connected yet.";
@@ -150,11 +153,11 @@ function setup(){
       relayPeerCount=message.count;
       relayStatus.textContent="Room "+relayRoom+": "+relayPeerCount+" participants.";
     }else if(message.type==="room_closed"){
-      relayRoom=null;relayRole=null;leaveRoom.disabled=true;
-      relayStatus.textContent="Room closed by host.";
+      relayRoom=null;relayRole=null;leaveRoom.disabled=true;syncNetworkButtons();
+      relayStatus.textContent="Room closed by host."
     }else if(message.type==="left_room"){
-      relayRoom=null;relayRole=null;leaveRoom.disabled=true;
-      relayStatus.textContent="Left relay room.";
+      relayRoom=null;relayRole=null;leaveRoom.disabled=true;syncNetworkButtons();
+      relayStatus.textContent="Left relay room."
     }else if(message.type==="error"){
       relayStatus.textContent="Relay error: "+String(message.code||"unknown_error").replace(/_/g," ");
     }
@@ -169,11 +172,23 @@ function setup(){
       }else if(event.type==="error"){
         relayStatus.textContent="Relay connection error: "+String(event.detail&&event.detail.code||"unknown error");
       }else if(event.type==="close"){
-        relayRoom=null;relayRole=null;leaveRoom.disabled=true;
-        relayStatus.textContent="Relay disconnected.";
+        relayRoom=null;relayRole=null;leaveRoom.disabled=true;syncNetworkButtons();
+        relayStatus.textContent="Relay disconnected."
       }
     });
   }
+  function startGameNetwork(hostRole){
+    var m=api();
+    if(!relayTransport||!relayTransport.isRoomReady()){relayStatus.textContent="Create or join a relay room first.";return;}
+    if(typeof m._sm64web_start_network!=="function"){relayStatus.textContent="This WebAssembly build does not include the experimental game-network adapter yet.";return;}
+    startHost.disabled=true;startClient.disabled=true;
+    var result=0;
+    try{result=m._sm64web_start_network(hostRole?1:0);}catch(e){relayStatus.textContent="Could not start game networking: "+e.message;syncNetworkButtons();return;}
+    if(result===1){relayStatus.textContent=hostRole?"CoopDX host session started. Waiting for clients to join…":"CoopDX client started; sending the normal join request…";}
+    else{relayStatus.textContent="Game networking could not start. Confirm the room role and rebuild the WebAssembly target.";syncNetworkButtons();}
+  }
+  startHost.addEventListener("click",function(){startGameNetwork(true);});
+  startClient.addEventListener("click",function(){startGameNetwork(false);});
   function relayConnectAndSend(message){
     if(!relayTransport){relayStatus.textContent="Relay transport bridge is not loaded.";return;}
     var endpoint=relayUrl.value.trim();
@@ -190,6 +205,7 @@ function setup(){
       relayTransport.connect(endpoint);
     }catch(e){relayPending=null;relayStatus.textContent="Could not connect to relay: "+e.message;}
   }
+  syncNetworkButtons();
   createRoom.addEventListener("click",function(){
     if(relayRoom){relayStatus.textContent="Leave the current room before creating another.";return;}
     relayPending=null;relayConnectAndSend({type:"create"});
