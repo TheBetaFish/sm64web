@@ -29,6 +29,79 @@ static void djui_panel_main_quit(struct DjuiBase* caller) {
 }
 
 #ifdef __EMSCRIPTEN__
+static struct DjuiInputbox* sMultiplayerRoomCode = NULL;
+static struct DjuiText* sMultiplayerStatus = NULL;
+
+EMSCRIPTEN_KEEPALIVE void sm64web_set_room_code(const char* code) {
+    if (sMultiplayerRoomCode && code) {
+        djui_inputbox_set_text(sMultiplayerRoomCode, (char*)code);
+        djui_inputbox_move_cursor_to_end(sMultiplayerRoomCode);
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void sm64web_set_multiplayer_status(const char* message) {
+    if (sMultiplayerStatus && message) {
+        djui_text_set_text(sMultiplayerStatus, message);
+    }
+}
+
+static void djui_panel_main_multiplayer_create_room(UNUSED struct DjuiBase* caller) {
+    djui_text_set_text(sMultiplayerStatus, "Connecting to multiplayer server...");
+    EM_ASM({
+        if (typeof window.sm64webCreateRoom === 'function') window.sm64webCreateRoom();
+        else if (typeof window.sm64webSetMultiplayerStatus === 'function') window.sm64webSetMultiplayerStatus("Multiplayer bridge is unavailable.");
+    });
+}
+
+static void djui_panel_main_multiplayer_join_room(UNUSED struct DjuiBase* caller) {
+    const char* code = sMultiplayerRoomCode ? sMultiplayerRoomCode->buffer : "";
+    if (!code || strlen(code) != 6) {
+        djui_text_set_text(sMultiplayerStatus, "Enter the six-character room code.");
+        if (sMultiplayerRoomCode) {
+            djui_interactable_set_input_focus(&sMultiplayerRoomCode->base);
+            djui_inputbox_select_all(sMultiplayerRoomCode);
+        }
+        return;
+    }
+    EM_ASM({
+        if (typeof window.sm64webJoinRoom === 'function') window.sm64webJoinRoom(UTF8ToString($0));
+        else if (typeof window.sm64webSetMultiplayerStatus === 'function') window.sm64webSetMultiplayerStatus("Multiplayer bridge is unavailable.");
+    }, code);
+    djui_text_set_text(sMultiplayerStatus, "Connecting to multiplayer server...");
+}
+
+static void djui_panel_main_multiplayer_back(struct DjuiBase* caller) {
+    sMultiplayerRoomCode = NULL;
+    sMultiplayerStatus = NULL;
+    djui_panel_menu_back(caller);
+}
+
+static void djui_panel_main_multiplayer(struct DjuiBase* caller) {
+    struct DjuiThreePanel* panel = djui_panel_menu_create("MULTIPLAYER", false);
+    struct DjuiBase* body = djui_three_panel_get_body(panel);
+    struct DjuiText* instructions = djui_text_create(body, "Create a room and share its code, or enter a friend's code to join.");
+    djui_base_set_size_type(&instructions->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&instructions->base, 1.0f, 70.0f);
+    djui_base_set_color(&instructions->base, 220, 220, 220, 255);
+
+    sMultiplayerRoomCode = djui_inputbox_create(body, 7);
+    djui_base_set_size_type(&sMultiplayerRoomCode->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&sMultiplayerRoomCode->base, 1.0f, 40.0f);
+    djui_inputbox_set_text(sMultiplayerRoomCode, "");
+
+    sMultiplayerStatus = djui_text_create(body, "Relay multiplayer is experimental.");
+    djui_base_set_size_type(&sMultiplayerStatus->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&sMultiplayerStatus->base, 1.0f, 54.0f);
+    djui_base_set_color(&sMultiplayerStatus->base, 220, 220, 220, 255);
+
+    djui_button_create(body, "Create Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_create_room);
+    djui_button_create(body, "Join Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_join_room);
+    struct DjuiButton* back = djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_main_multiplayer_back);
+    djui_panel_add(caller, panel, &back->base);
+}
+#endif
+
+#ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE void sm64web_start_solo(void) {
     // The browser build has no usable UDP sockets. Start a one-player local
     // server session; socket.c provides a no-network transport for this mode.
@@ -62,14 +135,24 @@ static void djui_panel_main_play_solo(struct DjuiBase* caller) {
 }
 
 static void djui_panel_main_multiplayer(struct DjuiBase* caller) {
-    // Browser multiplayer setup lives in the HTML shell because WebSocket
-    // room creation is asynchronous. Bring that lobby into view instead of
-    // leaving the menu item disabled or pretending networking is ready.
-    EM_ASM({
-        if (typeof window.sm64webOpenMultiplayer === 'function') {
-            window.sm64webOpenMultiplayer();
-        }
-    });
+    struct DjuiThreePanel* panel = djui_panel_menu_create("MULTIPLAYER", false);
+    struct DjuiBase* body = djui_three_panel_get_body(panel);
+    struct DjuiText* instructions = djui_text_create(body, "Create a room and share its code, or enter a friend's code to join.");
+    djui_base_set_size_type(&instructions->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&instructions->base, 1.0f, 70.0f);
+    djui_base_set_color(&instructions->base, 220, 220, 220, 255);
+    sMultiplayerRoomCode = djui_inputbox_create(body, 7);
+    djui_base_set_size_type(&sMultiplayerRoomCode->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&sMultiplayerRoomCode->base, 1.0f, 40.0f);
+    djui_inputbox_set_text(sMultiplayerRoomCode, "");
+    sMultiplayerStatus = djui_text_create(body, "Relay multiplayer is experimental.");
+    djui_base_set_size_type(&sMultiplayerStatus->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+    djui_base_set_size(&sMultiplayerStatus->base, 1.0f, 54.0f);
+    djui_base_set_color(&sMultiplayerStatus->base, 220, 220, 220, 255);
+    djui_button_create(body, "Create Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_create_room);
+    djui_button_create(body, "Join Room", DJUI_BUTTON_STYLE_NORMAL, djui_panel_main_multiplayer_join_room);
+    struct DjuiButton* back = djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_main_multiplayer_back);
+    djui_panel_add(caller, panel, &back->base);
 }
 #endif
 
