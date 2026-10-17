@@ -11,6 +11,16 @@ function setup(){
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
+  // Called by the in-game Multiplayer Lobby menu entry.
+  window.sm64webOpenMultiplayer=function(){
+    var lobby=document.getElementById("sm64web-relay");
+    if(lobby){
+      lobby.scrollIntoView({behavior:"smooth",block:"center"});
+      var url=document.getElementById("sm64web-relay-url");
+      if(url)url.focus({preventScroll:true});
+      status("Multiplayer lobby opened. Create or join a room below; a public relay must be configured for online play.");
+    }
+  };
   // Right-click toggles camera mode; it is a click, not a hold modifier.
   // Request/exit Pointer Lock directly from the user gesture so browsers allow it.
   canvas.addEventListener("contextmenu",function(e){e.preventDefault();});
