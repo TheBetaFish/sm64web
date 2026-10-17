@@ -1,4 +1,23 @@
 #include "socket/socket.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+extern void network_send_join_request(void);
+
+// Called by the web lobby after its shared relay transport has joined a room.
+// This deliberately reuses CoopDX's own join protocol; the relay never assigns
+// player slots. Return 1 only when the local network system initialized.
+EMSCRIPTEN_KEEPALIVE int sm64web_start_network(int hostRole) {
+    enum NetworkType requested = hostRole ? NT_SERVER : NT_CLIENT;
+    if (gNetworkType != NT_NONE) {
+        network_shutdown(false, false, false, false);
+    }
+    network_set_system(NS_SOCKET);
+    if (!network_init(requested, false)) return 0;
+    if (!hostRole) network_send_join_request();
+    return 1;
+}
+#endif
+
 #include "coopnet/coopnet.h"
 #include <stdio.h>
 #include "network.h"
