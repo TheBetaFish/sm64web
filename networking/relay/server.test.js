@@ -254,3 +254,49 @@ test("host packets are broadcast only to clients in the same room", async (t) =>
   assert.deepEqual(Buffer.from((await received).value), packet);
   assert.equal(await isolated, true);
 });
+
+
+test("multiple clients retain distinct peer identities and payload boundaries", async (t) => {
+  const relay = createRelay({ port: 0, maxPlayers: 4 });
+  const address = await relay.listen();
+  const url = "ws://127.0.0.1:" + address.port;
+  const sockets = [];
+  t.after(async () => {
+    for (const ws of sockets) if (ws.readyState === WebSocket.OPEN) ws.close();
+    await relay.close();
+  });
+
+  const host = await connect(url); sockets.push(host);
+  const created = nextMessage(host, (v) => v && v.type === "room_created");
+  sendControl(host, { type: "create" });
+  const { value: room } = await created;
+
+  async function joinClient() {
+    const client = await connect(url); sockets.push(client);
+    const joined = nextMessage(client, (v) => v && v.type === "room_joined");
+    const peerJoined = nextMessage(host, (v) => v && v.type === "peer_joined");
+    sendControl(client, { type: "join", roomCode: room.roomCode });
+    const clientInfo = (await joined).value;
+    const hostInfo = (await peerJoined).value;
+    assert.equal(clientInfo.peerId, hostInfo.peerId);
+    return { client, peerId: clientInfo.peerId };
+  }
+
+  const first = await joinClient();
+  const second = await joinClient();
+  assert.notEqual(first.peerId, second.peerId);
+
+  const firstPacket = Buffer.from([0x00, 0xff, 0x00, 0x7e]);
+  const secondPacket = Buffer.from([0x7e, 0x00, 0xff, 0x00]);
+  const firstReceived = nextMessage(host, (_v, binary) => binary);
+  first.client.send(firstPacket, { binary: true });
+  const firstEnvelope = Buffer.from((await firstReceived).value);
+  assert.equal(firstEnvelope.readUInt32LE(0), first.peerId);
+  assert.deepEqual(firstEnvelope.subarray(4), firstPacket);
+
+  const secondReceived = nextMessage(host, (_v, binary) => binary);
+  second.client.send(secondPacket, { binary: true });
+  const secondEnvelope = Buffer.from((await secondReceived).value);
+  assert.equal(secondEnvelope.readUInt32LE(0), second.peerId);
+  assert.deepEqual(secondEnvelope.subarray(4), secondPacket);
+});
