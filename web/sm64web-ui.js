@@ -242,6 +242,12 @@ function setup(){
     if(relayTransport&&relayTransport.sendControl({type:"leave"}))return;
     relayRoom=null;relayRole=null;leaveRoom.disabled=true;relayStatus.textContent="Relay disconnected.";
   });
+  // SDL/game keyboard handlers must not consume text typed into the HTML room-code field.
+  ["keydown","keyup","keypress"].forEach(function(type){
+    roomInput.addEventListener(type,function(e){e.stopPropagation();});
+  });
+  roomInput.addEventListener("pointerdown",function(e){e.stopPropagation();});
+  roomInput.addEventListener("click",function(e){e.stopPropagation();});
   roomInput.addEventListener("input",function(){roomInput.value=roomInput.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,"").slice(0,6);});
   var btn=document.getElementById("sm64web-fullscreen");
   function sync(){btn.textContent=(document.fullscreenElement===stage)?"Exit fullscreen":"Fullscreen";}
