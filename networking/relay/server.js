@@ -16,7 +16,7 @@ function makeRoomCode() {
   return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
 }
 
-function createRelay({ port = PORT, host = "127.0.0.1", maxPlayers = MAX_PLAYERS } = {}) {
+function createRelay({ port = PORT, host = process.env.HOST || "127.0.0.1", maxPlayers = MAX_PLAYERS } = {}) {
   const rooms = new Map();
   let nextPeerId = 1;
   const server = http.createServer((req, res) => {
@@ -205,7 +205,7 @@ if (require.main === module) {
   relay.listen().then((address) => {
     console.log("sm64web relay listening on ws://" + address.address + ":" + address.port);
     console.log("health check: http://" + address.address + ":" + address.port + "/health");
-    console.log("development only: bind to 127.0.0.1 by default");
+    console.log("relay host:", address.address);
   }).catch((error) => {
     console.error("relay startup failed:", error);
     process.exitCode = 1;
