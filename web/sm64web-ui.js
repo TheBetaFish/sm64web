@@ -138,9 +138,27 @@ function setup(){
   var relayTransport=window.sm64webRelayTransport;
   function callNative(name,value){
     var m=api();
-    if(typeof m[name]!=="function"||typeof m.allocateUTF8!=="function"||typeof m._free!=="function")return;
-    var ptr=m.allocateUTF8(String(value));
-    try{m[name](ptr);}finally{m._free(ptr);}
+    if(typeof m[name]!=="function"){
+      console.warn("SM64Web native bridge function unavailable:",name);
+      return false;
+    }
+    if(typeof m.allocateUTF8!=="function"||typeof m._free!=="function"){
+      console.warn("SM64Web native bridge string helpers unavailable:",{
+        allocateUTF8:typeof m.allocateUTF8,free:typeof m._free,name:name
+      });
+      return false;
+    }
+    var ptr=0;
+    try{
+      ptr=m.allocateUTF8(String(value));
+      m[name](ptr);
+      return true;
+    }catch(e){
+      console.error("SM64Web native bridge call failed:",name,e);
+      return false;
+    }finally{
+      if(ptr)m._free(ptr);
+    }
   }
   function nativeStatus(message){callNative("_sm64web_set_multiplayer_status",message);}
   function nativeRoomCode(code){callNative("_sm64web_set_room_code",code);}
