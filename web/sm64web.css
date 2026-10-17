@@ -22,3 +22,16 @@ body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:full
 #status,#output{color:#fff;font-family:monospace}
 #sm64web-load-file{display:none}
 @media(max-width:700px){body{padding:8px;gap:8px}#sm64web-header{align-items:flex-start}.sm64web-subtitle{display:none}#sm64web-stage{min-height:180px;max-height:calc(100vh - 105px)}#sm64web-controls{align-items:flex-start;flex-direction:column}.sm64web-control{padding:7px 9px}.sm64web-dialog{padding:20px}}
+
+/* Relay lobby controls are deliberately labeled experimental until game packets
+   are connected to CoopDX's native NetworkSystem interface. */
+#sm64web-relay{width:100%;padding:10px;border:2px solid #fff;background:#102d70;box-shadow:0 0 0 2px #17377d;color:#fff}
+.sm64web-relay-title{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;color:#fff36a}
+.sm64web-relay-fields{display:flex;gap:8px;flex-wrap:wrap}
+.sm64web-relay-fields label{display:flex;flex:1 1 220px;flex-direction:column;gap:4px;font-size:10px;font-weight:700}
+.sm64web-relay-fields input{min-width:0;width:100%;padding:7px 8px;border:2px solid #d5e6ff;border-radius:0;background:#050d20;color:#fff;font:12px monospace}
+.sm64web-relay-fields input:focus-visible{outline:2px solid #fff36a;outline-offset:1px}
+.sm64web-relay-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sm64web-relay-actions button:disabled{opacity:.45;cursor:not-allowed}
+#sm64web-relay-status{flex:1 1 260px;font-size:11px;line-height:1.4;color:#d5e6ff}
+@media(max-width:700px){.sm64web-relay-fields label{flex-basis:100%}.sm64web-relay-actions{align-items:stretch}.sm64web-relay-actions button{flex:1 1 auto}}
