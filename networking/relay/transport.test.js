@@ -24,8 +24,8 @@ test("relay transport queues control and binary events", function () {
   assert.equal(t.sendControl({ type: "create" }), true);
   assert.deepEqual(JSON.parse(s.sent[0]), { type: "create" });
   s.message(JSON.stringify({ type: "room_created", roomCode: "ABC234" }));
-  assert.equal(t.pollEvent().detail.roomCode, "ABC234");
-  s.message(new Uint8Array([4, 5]).buffer);
+  assert.equal(t.pollEvent().detail.roomCode, "ABC234");\n  assert.equal(t.getRoomCode(), "ABC234");\n  assert.equal(t.getRole(), "host");\n  assert.equal(t.isRoomReady(), true);
+  s.message(JSON.stringify({ type: "left_room" }));\n  assert.equal(t.isRoomReady(), false);\n  s.message(new Uint8Array([4, 5]).buffer);
   assert.deepEqual(Array.from(t.pollPacket()), [4, 5]);
   assert.equal(t.pollPacket(), null);
   s.close();
