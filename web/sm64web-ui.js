@@ -1,6 +1,37 @@
 (function(){
 "use strict";
 function setup(){
+  // Browsers may keep SDL2's Web Audio context suspended until a real user gesture.
+  // Resume it on the first interaction, including the Play Solo menu click.
+  var audioUnlockDone=false;
+  function unlockBrowserAudio(){
+    if(audioUnlockDone)return;
+    var candidates=[];
+    if(window.SDL2)candidates.push(window.SDL2);
+    if(window.Module&&window.Module.SDL2)candidates.push(window.Module.SDL2);
+    if(window.Module&&window.Module.SDL)candidates.push(window.Module.SDL);
+    var resumed=false;
+    candidates.forEach(function(sdl){
+      var context=sdl&&sdl.audioContext;
+      if(context&&context.state==="suspended"&&typeof context.resume==="function"){
+        try{
+          var promise=context.resume();
+          resumed=true;
+          if(promise&&typeof promise.then==="function")promise.then(function(){
+            if(context.state==="running")audioUnlockDone=true;
+          }).catch(function(){});
+        }catch(_){}
+      }else if(context&&context.state==="running"){
+        audioUnlockDone=true;
+      }
+    });
+    if(audioUnlockDone){
+      document.removeEventListener("pointerdown",unlockBrowserAudio,true);
+      document.removeEventListener("keydown",unlockBrowserAudio,true);
+    }
+  }
+  document.addEventListener("pointerdown",unlockBrowserAudio,true);
+  document.addEventListener("keydown",unlockBrowserAudio,true);
   var canvas=document.getElementById("canvas");
   if(!canvas||document.getElementById("sm64web-stage"))return;
   var header=document.createElement("header");header.id="sm64web-header";
