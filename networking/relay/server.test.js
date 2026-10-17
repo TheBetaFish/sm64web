@@ -144,3 +144,55 @@ test("room capacity rejects extra clients", async (t) => {
   sendControl(extra, { type: "join", roomCode: room.roomCode });
   assert.equal((await rejected).value.code, "room_full");
 });
+
+test("client leave and disconnect clean up membership; host disconnect closes remaining clients", async (t) => {
+  const relay = createRelay({ port: 0, maxPlayers: 3 });
+  const address = await relay.listen();
+  const url = "ws://127.0.0.1:" + address.port;
+  const sockets = [];
+  t.after(async () => {
+    for (const ws of sockets) if (ws.readyState === WebSocket.OPEN) ws.close();
+    await relay.close();
+  });
+
+  const host = await connect(url); sockets.push(host);
+  const created = nextMessage(host, (v) => v && v.type === "room_created");
+  sendControl(host, { type: "create" });
+  const { value: room } = await created;
+
+  const client = await connect(url); sockets.push(client);
+  const joined = nextMessage(client, (v) => v && v.type === "room_joined");
+  const peerJoined = nextMessage(host, (v) => v && v.type === "peer_joined");
+  sendControl(client, { type: "join", roomCode: room.roomCode });
+  const { value: clientRoom } = await joined;
+  await peerJoined;
+
+  const peerLeft = nextMessage(host, (v) => v && v.type === "peer_left");
+  const left = nextMessage(client, (v) => v && v.type === "left_room");
+  sendControl(client, { type: "leave" });
+  await left;
+  assert.equal((await peerLeft).value.peerId, clientRoom.peerId);
+  assert.equal(relay.rooms.get(room.roomCode).clients.size, 0);
+
+  const rejoined = nextMessage(client, (v) => v && v.type === "room_joined");
+  const peerJoinedAgain = nextMessage(host, (v) => v && v.type === "peer_joined");
+  sendControl(client, { type: "join", roomCode: room.roomCode });
+  await rejoined;
+  await peerJoinedAgain;
+
+  const disconnectedPeerLeft = nextMessage(host, (v) => v && v.type === "peer_left");
+  client.close();
+  await disconnectedPeerLeft;
+  assert.equal(relay.rooms.get(room.roomCode).clients.size, 0);
+
+  const secondClient = await connect(url); sockets.push(secondClient);
+  const secondJoined = nextMessage(secondClient, (v) => v && v.type === "room_joined");
+  sendControl(secondClient, { type: "join", roomCode: room.roomCode });
+  await secondJoined;
+
+  const roomClosed = nextMessage(secondClient, (v) => v && v.type === "room_closed");
+  host.close();
+  assert.equal((await roomClosed).value.reason, "host_disconnected");
+  assert.equal(relay.rooms.has(room.roomCode), false);
+});
+
