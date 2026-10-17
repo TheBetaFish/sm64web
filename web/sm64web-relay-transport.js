@@ -64,8 +64,17 @@
         emit("close");
       }
       finishActiveClose = finishClose;
+      // Do not leave the in-game menu stuck at "Connecting" if the hosting
+      // platform never completes the WebSocket handshake (for example, when
+      // a free service is unavailable or its deployment is misconfigured).
+      var connectTimeout = setTimeout(function () {
+        if (socket !== connection || connection.readyState !== 0) return;
+        reportError("connection_timeout");
+        try { connection.close(); } catch (_) { finishClose(); }
+      }, 12000);
 
       connection.onopen = function () {
+        clearTimeout(connectTimeout);
         if (socket !== connection) return;
         state = "connected";
         emit("open");
@@ -123,7 +132,10 @@
         if (socket !== connection) return;
         reportError("websocket_error");
       };
-      connection.onclose = finishClose;
+      connection.onclose = function () {
+        clearTimeout(connectTimeout);
+        finishClose();
+      };
     }
 
     function sendControl(message) {
