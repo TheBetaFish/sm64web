@@ -21,7 +21,7 @@ jobs:
   webassembly:
     runs-on: ubuntu-22.04
     environment:
-      name: github-pages
+      name: github-pages-audio-experiment
     steps:
       - name: Check out source
         uses: actions/checkout@v4
