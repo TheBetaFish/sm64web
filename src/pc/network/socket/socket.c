@@ -320,6 +320,15 @@ static void ns_socket_update(void) {
     if (sWebSoloMode) return;
     if (sWebNetworkMode) {
         if (gNetworkType == NT_NONE) return;
+        int roomReady = EM_ASM_INT({
+            var t = window.sm64webRelayTransport;
+            return t && typeof t.isRoomReady === "function" && t.isRoomReady() ? 1 : 0;
+        });
+        if (!roomReady) {
+            LOG_ERROR("browser relay room closed while CoopDX session was active");
+            network_shutdown(true, false, true, false);
+            return;
+        }
         // Consume relay membership events on the game thread. UI event handlers
         // are notified independently by the JS bridge, so this does not steal
         // events from the lobby's immediate status updates.
