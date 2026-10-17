@@ -1515,12 +1515,6 @@ void set_sound_bank_override(s32 bank) {
 }
 
 struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
-#ifdef __EMSCRIPTEN__
-    (void) seqId;
-    if (arg1 != NULL) { *arg1 = 0; }
-    fprintf(stderr, "WEB TRACE: browser build skipping bank load (silent audio)\n");
-    return NULL;
-#endif
     void *ret = NULL;
     u32 bankId = 0;
     u16 offset;
@@ -1573,12 +1567,6 @@ struct AudioBank *load_banks_immediate(s32 seqId, u8 *arg1) {
 
 #ifndef VERSION_SH
 void preload_sequence(u32 seqId, u8 preloadMask) {
-#ifdef __EMSCRIPTEN__
-    (void) seqId;
-    (void) preloadMask;
-    fprintf(stderr, "WEB TRACE: browser build skipping sequence preload (silent audio)\n");
-    return;
-#endif
     void *sequenceData;
     u8 temp;
 
@@ -1657,13 +1645,6 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
 #endif
     UNUSED u32 padding[2];
 
-#ifdef __EMSCRIPTEN__
-    // Browser audio-bank patching currently crashes during startup. Keep gameplay
-    // running while the WebAssembly audio-bank path is investigated.
-    sequence_player_disable(seqPlayer);
-    fprintf(stderr, "WEB TRACE: browser build skipping sequence and bank loading (silent audio)\n");
-    return;
-#endif
 
     // do custom music override
     {
