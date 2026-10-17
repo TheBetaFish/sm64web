@@ -321,6 +321,34 @@ static void ns_socket_update(void) {
     if (sWebSoloMode) return;
     if (sWebNetworkMode) {
         if (gNetworkType == NT_NONE) return;
+        // Consume relay membership events on the game thread. UI event handlers
+        // are notified independently by the JS bridge, so this does not steal
+        // events from the lobby's immediate status updates.
+        for (;;) {
+            int departedPeer = EM_ASM_INT({
+                var t = window.sm64webRelayTransport;
+                if (!t || typeof t.pollEvent !== "function") return 0;
+                var event;
+                while ((event = t.pollEvent()) !== null) {
+                    if (event.type === "control" && event.detail &&
+                        event.detail.type === "peer_left" &&
+                        Number.isInteger(event.detail.peerId)) {
+                        return event.detail.peerId | 0;
+                    }
+                }
+                return 0;
+            });
+            if (departedPeer <= 0) break;
+            for (u8 i = 1; i < MAX_PLAYERS; i++) {
+                if (gNetworkPlayers[i].connected &&
+                    sWebPeerAddresses[i].peerId == (u32)departedPeer) {
+                    u8 globalIndex = gNetworkPlayers[i].globalIndex;
+                    LOG_INFO("browser relay peer %u disconnected", (u32)departedPeer);
+                    network_player_disconnected(globalIndex);
+                    break;
+                }
+            }
+        }
         for (;;) {
             int received = EM_ASM_INT({
                 var t = window.sm64webRelayTransport;
