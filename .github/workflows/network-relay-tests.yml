@@ -33,5 +33,6 @@ jobs:
         run: |
           node --check ../../web/sm64web-ui.js
           node --check ../../web/sm64web-relay-transport.js
-      - name: Run relay tests
+          node --check browser-transport.test.js
+      - name: Run relay and browser transport tests
         run: npm test
