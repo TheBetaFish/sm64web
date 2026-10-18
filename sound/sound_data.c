@@ -28,7 +28,7 @@ unsigned char gBankSetsData[] = {
 #ifdef __EMSCRIPTEN__
 void web_audio_log_asset_sizes(unsigned int sequenceCount) {
     fprintf(stderr,
-            "WEB TRACE: audio assets ADSR=%p size=%u RAW=%p size=%u MUSIC=%p size=%u bankSets=%p sequences=%u\\n",
+            "WEB TRACE: audio assets ADSR=%p size=%u RAW=%p size=%u MUSIC=%p size=%u bankSets=%p sequences=%u\n",
             (void *)gSoundDataADSR, (unsigned)sizeof(gSoundDataADSR),
             (void *)gSoundDataRaw, (unsigned)sizeof(gSoundDataRaw),
             (void *)gMusicData, (unsigned)sizeof(gMusicData),
