@@ -35,48 +35,41 @@ static bool audio_sdl_init(void) {
     fprintf(stderr, "WEB AUDIO: SDL device opened id=%u freq=%d format=%u channels=%u samples=%u status=%d\n",
             (unsigned)dev, have.freq, (unsigned)have.format, (unsigned)have.channels,
             (unsigned)have.samples, (int)SDL_GetAudioDeviceStatus(dev));
-    EM_ASM({
-        if (!Module.__sm64WebAudioUnlockInstalled) {
-            Module.__sm64WebAudioUnlockInstalled = true;
-            var unlock = function () {
-                var candidates = [
-                    (typeof SDL2 !== 'undefined' && SDL2.audioContext) ? SDL2.audioContext : null,
-                    (typeof Module !== 'undefined' && Module.SDL2 && Module.SDL2.audioContext) ? Module.SDL2.audioContext : null,
-                    (typeof SDL !== 'undefined' && SDL.audioContext) ? SDL.audioContext : null,
-                    (typeof Module !== 'undefined' && Module.SDL && Module.SDL.audioContext) ? Module.SDL.audioContext : null
-                ];
-                var ctx = null;
-                for (var i = 0; i < candidates.length; i++) {
-                    if (candidates[i]) { ctx = candidates[i]; break; }
-                }
-                if (!ctx) {
-                    console.warn("WEB AUDIO: user gesture found no SDL AudioContext");
-                    document.removeEventListener('click', unlock);
-                    document.removeEventListener('keydown', unlock);
-                    document.removeEventListener('touchstart', unlock);
-                    return;
-                }
-                console.log("WEB AUDIO: AudioContext before resume state=" + ctx.state);
-                if (ctx.state === 'suspended') {
-                    ctx.resume().then(function () {
-                        console.log("WEB AUDIO: AudioContext after resume state=" + ctx.state);
-                    }).catch(function (err) {
-                        console.error("WEB AUDIO: AudioContext resume failed", err);
-                    });
-                } else {
-                    console.log("WEB AUDIO: AudioContext after resume state=" + ctx.state);
-                }
-                if (ctx.state === 'running') {
-                    document.removeEventListener('click', unlock);
-                    document.removeEventListener('keydown', unlock);
-                    document.removeEventListener('touchstart', unlock);
-                }
-            };
-            document.addEventListener('click', unlock);
-            document.addEventListener('keydown', unlock);
-            document.addEventListener('touchstart', unlock);
-        }
-    });
+    emscripten_run_script(
+        "if (!Module.__sm64WebAudioUnlockInstalled) {"
+                " Module.__sm64WebAudioUnlockInstalled = true;"
+                " var unlock = function () {"
+                "  var candidates = ["
+                "   (typeof SDL2 !== 'undefined' && SDL2.audioContext) ? SDL2.audioContext : null,"
+                "   (typeof Module !== 'undefined' && Module.SDL2 && Module.SDL2.audioContext) ? Module.SDL2.audioContext : null,"
+                "   (typeof SDL !== 'undefined' && SDL.audioContext) ? SDL.audioContext : null,"
+                "   (typeof Module !== 'undefined' && Module.SDL && Module.SDL.audioContext) ? Module.SDL.audioContext : null"
+                "  ];"
+                "  var ctx = null;"
+                "  for (var i = 0; i < candidates.length; i++) { if (candidates[i]) { ctx = candidates[i]; break; } }"
+                "  if (!ctx) {"
+                "   console.warn('WEB AUDIO: user gesture found no SDL AudioContext');"
+                "   document.removeEventListener('click', unlock);"
+                "   document.removeEventListener('keydown', unlock);"
+                "   document.removeEventListener('touchstart', unlock);"
+                "   return;"
+                "  }"
+                "  console.log('WEB AUDIO: AudioContext before resume state=' + ctx.state);"
+                "  if (ctx.state === 'suspended') {"
+                "   ctx.resume().then(function () { console.log('WEB AUDIO: AudioContext after resume state=' + ctx.state); })"
+                "    .catch(function (err) { console.error('WEB AUDIO: AudioContext resume failed', err); });"
+                "  } else { console.log('WEB AUDIO: AudioContext after resume state=' + ctx.state); }"
+                "  if (ctx.state === 'running') {"
+                "   document.removeEventListener('click', unlock);"
+                "   document.removeEventListener('keydown', unlock);"
+                "   document.removeEventListener('touchstart', unlock);"
+                "  }"
+                " };"
+                " document.addEventListener('click', unlock);"
+                " document.addEventListener('keydown', unlock);"
+                " document.addEventListener('touchstart', unlock);"
+                "}"
+    );
 #endif
     return true;
 }
