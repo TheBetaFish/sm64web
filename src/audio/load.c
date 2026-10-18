@@ -1721,7 +1721,7 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
         struct AudioBank *loadedBank = load_banks_immediate(seqId, &seqPlayer->defaultBank[0]);
 #ifdef __EMSCRIPTEN__
         if (loadedBank == NULL) {
-            WEB_AUDIO_TRACE("WEB TRACE: bank load failed seq=%u defaultBank=%u; sequence player remains disabled\\n",
+            WEB_AUDIO_TRACE("WEB TRACE: bank load failed seq=%u defaultBank=%u; sequence player remains disabled\n",
                     seqId, seqPlayer->defaultBank[0]);
         }
 #endif
@@ -1755,14 +1755,14 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
 
         if (sequenceData == NULL) {
 #ifdef __EMSCRIPTEN__
-            WEB_AUDIO_TRACE("WEB TRACE: sequence data NULL after sequence_dma_immediate seq=%u\\n", seqId);
+            WEB_AUDIO_TRACE("WEB TRACE: sequence data NULL after sequence_dma_immediate seq=%u\n", seqId);
 #endif
             return;
         }
     }
 #ifdef __EMSCRIPTEN__
     if (sequenceData == NULL) {
-        WEB_AUDIO_TRACE("WEB TRACE: sequence data NULL before init_sequence_player seq=%u\\n", seqId);
+        WEB_AUDIO_TRACE("WEB TRACE: sequence data NULL before init_sequence_player seq=%u\n", seqId);
         return;
     }
 #endif
