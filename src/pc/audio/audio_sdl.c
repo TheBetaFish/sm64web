@@ -32,7 +32,7 @@ static bool audio_sdl_init(void) {
     }
     SDL_PauseAudioDevice(dev, 0);
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB AUDIO: SDL device opened id=%u freq=%d format=%u channels=%u samples=%u status=%d\\n",
+    fprintf(stderr, "WEB AUDIO: SDL device opened id=%u freq=%d format=%u channels=%u samples=%u status=%d\n",
             (unsigned)dev, have.freq, (unsigned)have.format, (unsigned)have.channels,
             (unsigned)have.samples, (int)SDL_GetAudioDeviceStatus(dev));
     EM_ASM({
@@ -94,7 +94,7 @@ static void audio_sdl_play(const uint8_t *buf, size_t len) {
     if (dev == 0 || buf == NULL || len == 0) return;
 #ifdef __EMSCRIPTEN__
     unsigned int call = ++web_audio_play_calls;
-    if (call <= 8) {
+    if (call <= 10) {
         int16_t const *samples = (int16_t const *)buf;
         size_t count = len / sizeof(*samples);
         int peak = 0;
@@ -111,7 +111,7 @@ static void audio_sdl_play(const uint8_t *buf, size_t len) {
     if (audio_sdl_buffered() < 6000) {
         int result = SDL_QueueAudio(dev, buf, (Uint32)len);
 #ifdef __EMSCRIPTEN__
-        if (web_audio_play_calls <= 8) {
+        if (web_audio_play_calls <= 10) {
             fprintf(stderr, "WEB AUDIO: queue result=%d queued_after=%u error=%s\n",
                     result, (unsigned)SDL_GetQueuedAudioSize(dev), SDL_GetError());
         }
