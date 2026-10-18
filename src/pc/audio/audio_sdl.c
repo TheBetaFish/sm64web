@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "audio_api.h"
 
@@ -11,7 +14,7 @@ static unsigned int web_audio_play_calls;
 
 static bool audio_sdl_init(void) {
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
-        fprintf(stderr, "SDL init error: %s\\n", SDL_GetError());
+        fprintf(stderr, "SDL init error: %s\n", SDL_GetError());
         return false;
     }
 
@@ -24,15 +27,57 @@ static bool audio_sdl_init(void) {
     want.callback = NULL;
     dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     if (dev == 0) {
-        fprintf(stderr, "SDL_OpenAudio error: %s\\n", SDL_GetError());
+        fprintf(stderr, "SDL_OpenAudio error: %s\n", SDL_GetError());
         return false;
     }
+    SDL_PauseAudioDevice(dev, 0);
 #ifdef __EMSCRIPTEN__
     fprintf(stderr, "WEB AUDIO: SDL device opened id=%u freq=%d format=%u channels=%u samples=%u status=%d\\n",
             (unsigned)dev, have.freq, (unsigned)have.format, (unsigned)have.channels,
             (unsigned)have.samples, (int)SDL_GetAudioDeviceStatus(dev));
+    EM_ASM({
+        if (!Module.__sm64WebAudioUnlockInstalled) {
+            Module.__sm64WebAudioUnlockInstalled = true;
+            var unlock = function () {
+                var candidates = [
+                    (typeof SDL2 !== 'undefined' && SDL2.audioContext) ? SDL2.audioContext : null,
+                    (typeof Module !== 'undefined' && Module.SDL2 && Module.SDL2.audioContext) ? Module.SDL2.audioContext : null,
+                    (typeof SDL !== 'undefined' && SDL.audioContext) ? SDL.audioContext : null,
+                    (typeof Module !== 'undefined' && Module.SDL && Module.SDL.audioContext) ? Module.SDL.audioContext : null
+                ];
+                var ctx = null;
+                for (var i = 0; i < candidates.length; i++) {
+                    if (candidates[i]) { ctx = candidates[i]; break; }
+                }
+                if (!ctx) {
+                    console.warn("WEB AUDIO: user gesture found no SDL AudioContext");
+                    document.removeEventListener('click', unlock);
+                    document.removeEventListener('keydown', unlock);
+                    document.removeEventListener('touchstart', unlock);
+                    return;
+                }
+                console.log("WEB AUDIO: AudioContext before resume state=" + ctx.state);
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(function () {
+                        console.log("WEB AUDIO: AudioContext after resume state=" + ctx.state);
+                    }).catch(function (err) {
+                        console.error("WEB AUDIO: AudioContext resume failed", err);
+                    });
+                } else {
+                    console.log("WEB AUDIO: AudioContext after resume state=" + ctx.state);
+                }
+                if (ctx.state === 'running') {
+                    document.removeEventListener('click', unlock);
+                    document.removeEventListener('keydown', unlock);
+                    document.removeEventListener('touchstart', unlock);
+                }
+            };
+            document.addEventListener('click', unlock);
+            document.addEventListener('keydown', unlock);
+            document.addEventListener('touchstart', unlock);
+        }
+    });
 #endif
-    SDL_PauseAudioDevice(dev, 0);
     return true;
 }
 
@@ -58,7 +103,7 @@ static void audio_sdl_play(const uint8_t *buf, size_t len) {
             int magnitude = value < 0 ? -value : value;
             if (magnitude > peak) peak = magnitude;
         }
-        fprintf(stderr, "WEB AUDIO: play call=%u bytes=%u samples=%u peak=%d queued_before=%u\\n",
+        fprintf(stderr, "WEB AUDIO: play call=%u bytes=%u samples=%u peak=%d queued_before=%u\n",
                 call, (unsigned)len, (unsigned)count, peak,
                 (unsigned)SDL_GetQueuedAudioSize(dev));
     }
@@ -67,7 +112,7 @@ static void audio_sdl_play(const uint8_t *buf, size_t len) {
         int result = SDL_QueueAudio(dev, buf, (Uint32)len);
 #ifdef __EMSCRIPTEN__
         if (web_audio_play_calls <= 8) {
-            fprintf(stderr, "WEB AUDIO: queue result=%d queued_after=%u error=%s\\n",
+            fprintf(stderr, "WEB AUDIO: queue result=%d queued_after=%u error=%s\n",
                     result, (unsigned)SDL_GetQueuedAudioSize(dev), SDL_GetError());
         }
 #endif
