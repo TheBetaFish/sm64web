@@ -33,6 +33,58 @@ static unsigned int sWebAudioTraceBankCount;
 static u32 web_audio_read_be32(const u8 *p) {
     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | (u32)p[3];
 }
+
+/*
+ * The committed sound headers were serialized with 64-bit ALSeqData entries:
+ * an 8-byte relative offset followed by a 4-byte length, padded to 16 bytes.
+ * Emscripten's native ALSeqData is 8 bytes (32-bit pointer + 32-bit length).
+ * Normalize only the header entries into the native layout; the actual asset
+ * payload stays at its original address so all relative offsets remain valid.
+ */
+static u32 web_audio_read_le32(const u8 *p) {
+    return (u32)p[0] | ((u32)p[1] << 8) | ((u32)p[2] << 16) | ((u32)p[3] << 24);
+}
+
+static bool web_audio_convert_seq_file(const u8 *src, size_t src_size,
+                                       ALSeqFile *dst, size_t dst_size,
+                                       const char *label) {
+    u32 count;
+    size_t needed;
+    if (src_size < 8 || dst_size < 4) {
+        fprintf(stderr, "WEB AUDIO ERROR: %s header too small (src=%lu dst=%lu)\\n",
+                label, (unsigned long)src_size, (unsigned long)dst_size);
+        return false;
+    }
+    count = (u32)src[2] | ((u32)src[3] << 8);
+    needed = 8 + (size_t)count * 16;
+    if (needed > src_size || 4 + (size_t)count * sizeof(ALSeqData) > dst_size) {
+        fprintf(stderr, "WEB AUDIO ERROR: %s header bounds invalid count=%u src=%lu dst=%lu\\n",
+                label, count, (unsigned long)src_size, (unsigned long)dst_size);
+        return false;
+    }
+    dst->revision = (s16)((u16)src[0] | ((u16)src[1] << 8));
+    dst->seqCount = (s16)count;
+    for (u32 i = 0; i < count; i++) {
+        const u8 *entry = src + 8 + (size_t)i * 16;
+        u32 offset = web_audio_read_le32(entry);
+        u32 offset_hi = web_audio_read_le32(entry + 4);
+        u32 len = web_audio_read_le32(entry + 8);
+        if (offset_hi != 0) {
+            fprintf(stderr, "WEB AUDIO ERROR: %s entry %u offset exceeds wasm32: hi=0x%08x\\n",
+                    label, i, offset_hi);
+            return false;
+        }
+        dst->seqArray[i].offset = (u8 *)(uintptr_t)offset;
+        dst->seqArray[i].len = (s32)len;
+    }
+    fprintf(stderr, "WEB AUDIO: converted %s header seqCount=%u first entries:", label, count);
+    for (u32 i = 0; i < count && i < 3; i++) {
+        fprintf(stderr, " [%u off=0x%08lx len=%d]", i,
+                (unsigned long)(uintptr_t)dst->seqArray[i].offset, dst->seqArray[i].len);
+    }
+    fprintf(stderr, "\\n");
+    return true;
+}
 static void web_audio_dump16(const char *label, const u8 *p) {
     fprintf(stderr, "WEB TRACE: %s", label);
     for (int i = 0; i < 16; i++) fprintf(stderr, " %02x", p[i]);
@@ -2188,11 +2240,20 @@ void audio_init() {
 #else
     gSeqFileHeader = (ALSeqFile *) buf;
     data = gMusicData;
+#ifdef __EMSCRIPTEN__
+    gSequenceCount = (s16)((u16)gMusicData[2] | ((u16)gMusicData[3] << 8));
+    web_audio_log_asset_sizes(gSequenceCount);
+    size = ALIGN16((size_t)gSequenceCount * sizeof(ALSeqData) + 4);
+    gSeqFileHeader = soundAlloc(&gAudioInitPool, size);
+    if (gSeqFileHeader == NULL ||
+        !web_audio_convert_seq_file(gMusicData, 0x1ca00, gSeqFileHeader, size, "sequences")) {
+        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid sequence header\\n");
+        return;
+    }
+    alSeqFileNew(gSeqFileHeader, data);
+#else
     audio_dma_copy_immediate((uintptr_t) data, gSeqFileHeader, 0x10);
     gSequenceCount = gSeqFileHeader->seqCount;
-#ifdef __EMSCRIPTEN__
-    web_audio_log_asset_sizes(gSequenceCount);
-#endif
 #if defined(VERSION_EU)
     size = gSequenceCount * sizeof(ALSeqData) + 4;
     size = ALIGN16(size);
@@ -2202,6 +2263,7 @@ void audio_init() {
     gSeqFileHeader = soundAlloc(&gAudioInitPool, size);
     audio_dma_copy_immediate((uintptr_t) data, gSeqFileHeader, size);
     alSeqFileNew(gSeqFileHeader, data);
+#endif
 
     // Load header for CTL (assets/sound_data.ctl.s, i.e. ADSR)
     gAlCtlHeader = (ALSeqFile *) buf;
@@ -2209,28 +2271,51 @@ void audio_init() {
 #ifdef __EMSCRIPTEN__
     web_audio_dump16("ADSR first16:", gSoundDataADSR);
     fprintf(stderr, "WEB TRACE: first CTL entry bytes:");
-    for (int k = 4; k < 12; k++) fprintf(stderr, " %02x", gSoundDataADSR[k]);
-    fprintf(stderr, " raw32[0]=0x%08x BE32[0]=0x%08x raw32[1]=0x%08x BE32[1]=0x%08x\\n",
-            *(const u32 *)(gSoundDataADSR + 4), web_audio_read_be32(gSoundDataADSR + 4),
-            *(const u32 *)(gSoundDataADSR + 8), web_audio_read_be32(gSoundDataADSR + 8));
-#endif
+    for (int k = 8; k < 16; k++) fprintf(stderr, " %02x", gSoundDataADSR[k]);
+    fprintf(stderr, "\\n");
+    fprintf(stderr, "WEB TRACE: raw32[0]=0x%08x BE32[0]=0x%08x raw32[1]=0x%08x BE32[1]=0x%08x\\n",
+            *(const u32 *)(gSoundDataADSR + 8), web_audio_read_be32(gSoundDataADSR + 8),
+            *(const u32 *)(gSoundDataADSR + 12), web_audio_read_be32(gSoundDataADSR + 12));
+    gSequenceCount = (s16)((u16)gSoundDataADSR[2] | ((u16)gSoundDataADSR[3] << 8));
+    size = ALIGN16((size_t)gSequenceCount * sizeof(ALSeqData) + 4);
+    gCtlEntries = soundAlloc(&gAudioInitPool, gSequenceCount * sizeof(struct CtlEntry));
+    gAlCtlHeader = soundAlloc(&gAudioInitPool, size);
+    if (gCtlEntries == NULL || gAlCtlHeader == NULL ||
+        !web_audio_convert_seq_file(gSoundDataADSR, 193920, gAlCtlHeader, size, "CTL")) {
+        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid CTL header\\n");
+        return;
+    }
+#else
     audio_dma_copy_immediate((uintptr_t) data, gAlCtlHeader, 0x10);
     size = gAlCtlHeader->seqCount * sizeof(ALSeqData) + 4;
     size = ALIGN16(size);
     gCtlEntries = soundAlloc(&gAudioInitPool, gAlCtlHeader->seqCount * sizeof(struct CtlEntry));
     gAlCtlHeader = soundAlloc(&gAudioInitPool, size);
     audio_dma_copy_immediate((uintptr_t) data, gAlCtlHeader, size);
+#endif
     alSeqFileNew(gAlCtlHeader, data);
 
     // Load header for TBL (assets/sound_data.tbl.s, i.e. raw data)
+    data = gSoundDataRaw;
+#ifdef __EMSCRIPTEN__
+    {
+        u32 tblCount = (u32)gSoundDataRaw[2] | ((u32)gSoundDataRaw[3] << 8);
+        size = ALIGN16((size_t)tblCount * sizeof(ALSeqData) + 4);
+        gAlTbl = soundAlloc(&gAudioInitPool, size);
+        if (gAlTbl == NULL ||
+            !web_audio_convert_seq_file(gSoundDataRaw, 5997056, gAlTbl, size, "TBL")) {
+            fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid TBL header\\n");
+            return;
+        }
+    }
+#else
     gAlTbl = (ALSeqFile *) buf;
     audio_dma_copy_immediate((uintptr_t) data, gAlTbl, 0x10);
     size = gAlTbl->seqCount * sizeof(ALSeqData) + 4;
     size = ALIGN16(size);
     gAlTbl = soundAlloc(&gAudioInitPool, size);
-
-    data = gSoundDataRaw;
     audio_dma_copy_immediate((uintptr_t) data, gAlTbl, size);
+#endif
     alSeqFileNew(gAlTbl, data);
 
     // Load bank sets for each sequence (assets/bank_sets.s)
