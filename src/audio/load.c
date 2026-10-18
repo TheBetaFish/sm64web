@@ -17,6 +17,38 @@
 #define ALIGN16(val) (((val) + 0xF) & ~0xF)
 
 #ifdef __EMSCRIPTEN__
+#include <stddef.h>
+extern unsigned char gSoundDataADSR[];
+extern unsigned char gSoundDataRaw[];
+extern unsigned char gMusicData[];
+extern unsigned char gBankSetsData[];
+extern void web_audio_log_asset_sizes(unsigned int sequenceCount);
+
+static s32 sWebAudioBankTraceId = -1;
+static size_t sWebAudioBankCtlSize;
+
+#define WEB_BANK_TRACE(bank, ...) do { if ((bank) < 3) fprintf(stderr, __VA_ARGS__); } while (0)
+static u32 web_audio_read_be32(const u8 *p) {
+    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | (u32)p[3];
+}
+static void web_audio_dump16(const char *label, const u8 *p) {
+    fprintf(stderr, "WEB TRACE: %s", label);
+    for (int i = 0; i < 16; i++) fprintf(stderr, " %02x", p[i]);
+    fprintf(stderr, "\\n");
+}
+static bool web_audio_offset_ok(s32 bank, const char *field, uintptr_t off, size_t need, size_t size) {
+    if (off > size || need > size - off) {
+        fprintf(stderr, "WEB AUDIO BOUNDS ERROR: bank=%d field=%s offset=0x%08lx need=%lu size=%lu base=%p\\n",
+                bank, field, (unsigned long)off, (unsigned long)need, (unsigned long)size,
+                (field[0] == 'r') ? (void *)gSoundDataRaw : (void *)gSoundDataADSR);
+        return false;
+    }
+    return true;
+}
+#endif
+
+
+#ifdef __EMSCRIPTEN__
 #define WEB_AUDIO_TRACE(...) do { static unsigned int web_trace_count; if (web_trace_count++ < 10) fprintf(stderr, __VA_ARGS__); } while (0)
 #else
 #define WEB_AUDIO_TRACE(...) ((void)0)
@@ -1073,6 +1105,28 @@ void patch_audio_bank(struct AudioBank *mem, u8 *offset, u32 numInstruments, u32
 #define BASE_OFFSET(x, base) (void *)((uintptr_t) (x) + (uintptr_t) base)
 #define PATCH(x, base) (patched = BASE_OFFSET(x, base))
 #define PATCH_MEM(x) x = PATCH(x, mem)
+#ifdef __EMSCRIPTEN__
+    if (sWebAudioBankTraceId >= 0 && sWebAudioBankTraceId < 3) {
+        fprintf(stderr, "WEB TRACE: patch_audio_bank bank=%d source=%p final=%p ctlBase=%p ctlSize=%lu rawBase=%p rawSize=%u sizeof(Instrument)=%u sizeof(Drum)=%u sizeof(AudioBankSample)=%u sizeof(AdpcmBook)=%u\\n",
+                sWebAudioBankTraceId, (void *)mem, (void *)((uintptr_t)mem + (uintptr_t)mem->instruments),
+                (void *)gSoundDataADSR, (unsigned long)sWebAudioBankCtlSize,
+                (void *)gSoundDataRaw, (unsigned)sizeof(gSoundDataRaw),
+                (unsigned)sizeof(struct Instrument), (unsigned)sizeof(struct Drum),
+                (unsigned)sizeof(struct AudioBankSample), (unsigned)sizeof(struct AdpcmBook));
+        WEB_BANK_TRACE(sWebAudioBankTraceId, "WEB TRACE: PATCH offsets drums=%u instruments=%u Instrument.envelope=%u AudioBankSound.sample=%u Sample.sampleAddr=%u loop=%u book=%u AdpcmBook.order=%u npredictors=%u\\n",
+                (unsigned)offsetof(struct AudioBank, drums), (unsigned)offsetof(struct AudioBank, instruments),
+                (unsigned)offsetof(struct Instrument, envelope), (unsigned)offsetof(struct AudioBankSound, sample),
+                (unsigned)offsetof(struct AudioBankSample, sampleAddr), (unsigned)offsetof(struct AudioBankSample, loop),
+                (unsigned)offsetof(struct AudioBankSample, book), (unsigned)offsetof(struct AdpcmBook, order),
+                (unsigned)offsetof(struct AdpcmBook, npredictors));
+        if (!web_audio_offset_ok(sWebAudioBankTraceId, "ctl drums pointer", (uintptr_t)mem->drums, sizeof(void *) * numDrums, sWebAudioBankCtlSize) ||
+            !web_audio_offset_ok(sWebAudioBankTraceId, "ctl instruments pointer", (uintptr_t)mem->instruments, sizeof(void *) * numInstruments, sWebAudioBankCtlSize)) {
+            fprintf(stderr, "WEB AUDIO BOUNDS ERROR: bank=%d patch_audio_bank rejected invalid pointer/count before dereference\\n", sWebAudioBankTraceId);
+            return;
+        }
+    }
+#endif
+
 
 #if defined(VERSION_SH)
     numDrums2 = gCtlEntries[bankId].numDrums;
@@ -1326,6 +1380,23 @@ static void web_trace_bank_sample_pointers(s32 bankId) {
 
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
+#ifdef __EMSCRIPTEN__
+    if (bankId >= 0 && bankId < 3) {
+        const u8 *raw = (const u8 *)gAlCtlHeader->seqArray[bankId].offset;
+        WEB_BANK_TRACE(bankId, "WEB TRACE: bank_load_immediate bank=%d gCtlEntries=%p entry=%p offset=%p len=%d ctlBase=%p ctlSize=%u rawCtlBytes=%02x %02x %02x %02x firstBE32=0x%08x rawBase=%p rawSize=%u\\n",
+            bankId, (void *)gCtlEntries, (void *)&gCtlEntries[bankId],
+            (void *)gAlCtlHeader->seqArray[bankId].offset, gAlCtlHeader->seqArray[bankId].len,
+            (void *)gSoundDataADSR, (unsigned)sizeof(gSoundDataADSR),
+            raw[0], raw[1], raw[2], raw[3], web_audio_read_be32(raw),
+            (void *)gSoundDataRaw, (unsigned)sizeof(gSoundDataRaw));
+        WEB_BANK_TRACE(bankId, "WEB TRACE: entry fields offset=%p size=%d numInstruments=%u numDrums=%u instruments=%p drums=%p\\n",
+            (void *)gAlCtlHeader->seqArray[bankId].offset, gAlCtlHeader->seqArray[bankId].len,
+            gCtlEntries[bankId].numInstruments, gCtlEntries[bankId].numDrums,
+            (void *)gCtlEntries[bankId].instruments, (void *)gCtlEntries[bankId].drums);
+    }
+    sWebAudioBankTraceId = bankId;
+#endif
+
     UNUSED u32 pad1[4];
     u32 buf[4];
     u32 numInstruments, numDrums;
@@ -1347,6 +1418,31 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
     audio_dma_copy_immediate((uintptr_t) ctlData, buf, 0x10);
     numInstruments = buf[0];
     numDrums = buf[1];
+#ifdef __EMSCRIPTEN__
+    if (bankId < 3) {
+        const u8 *raw = (const u8 *)ctlData;
+        WEB_BANK_TRACE(bankId, "WEB TRACE: bank=%d source=%p final=%p alloc=%d raw header bytes:", bankId, (void *)ctlData, (void *)ret, alloc);
+        for (int k = 0; k < 16; k++) fprintf(stderr, " %02x", raw[k]);
+        fprintf(stderr, "\\nWEB TRACE: bank=%d raw u32[0]=0x%08x BE[0]=0x%08x native numInstruments=0x%08x raw u32[1]=0x%08x BE[1]=0x%08x native numDrums=0x%08x\\n",
+                bankId, ((u32 *)raw)[0], web_audio_read_be32(raw), numInstruments,
+                ((u32 *)raw)[1], web_audio_read_be32(raw + 4), numDrums);
+        fprintf(stderr, "WEB TRACE: layouts Instrument=%u Drum=%u AudioBankSample=%u AdpcmBook=%u AudioBankSound=%u offsets Instrument.envelope=%u low=%u normal=%u high=%u Sample.sampleAddr=%u loop=%u book=%u\\n",
+                (unsigned)sizeof(struct Instrument), (unsigned)sizeof(struct Drum),
+                (unsigned)sizeof(struct AudioBankSample), (unsigned)sizeof(struct AdpcmBook),
+                (unsigned)sizeof(struct AudioBankSound),
+                (unsigned)offsetof(struct Instrument, envelope), (unsigned)offsetof(struct Instrument, lowNotesSound),
+                (unsigned)offsetof(struct Instrument, normalNotesSound), (unsigned)offsetof(struct Instrument, highNotesSound),
+                (unsigned)offsetof(struct AudioBankSample, sampleAddr), (unsigned)offsetof(struct AudioBankSample, loop),
+                (unsigned)offsetof(struct AudioBankSample, book));
+        if (numInstruments > (u32)(alloc / (s32)sizeof(void *)) || numDrums > (u32)(alloc / (s32)sizeof(void *))) {
+            fprintf(stderr, "WEB AUDIO BOUNDS ERROR: bank=%d invalid big-endian counts instruments=%u drums=%u alloc=%d; refusing to patch bank\\n",
+                    bankId, numInstruments, numDrums, alloc);
+            return NULL;
+        }
+    }
+    sWebAudioBankCtlSize = alloc;
+#endif
+
     audio_dma_copy_immediate((uintptr_t)(ctlData + 0x10), ret, alloc);
     patch_audio_bank(ret, gAlTbl->seqArray[bankId].offset, numInstruments, numDrums);
     gCtlEntries[bankId].numInstruments = (u8) numInstruments;
@@ -2107,6 +2203,9 @@ void audio_init() {
     // Load header for CTL (assets/sound_data.ctl.s, i.e. ADSR)
     gAlCtlHeader = (ALSeqFile *) buf;
     data = gSoundDataADSR;
+#ifdef __EMSCRIPTEN__
+    web_audio_dump16("ADSR first16:", gSoundDataADSR);
+#endif
     audio_dma_copy_immediate((uintptr_t) data, gAlCtlHeader, 0x10);
     size = gAlCtlHeader->seqCount * sizeof(ALSeqData) + 4;
     size = ALIGN16(size);
