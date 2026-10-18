@@ -972,7 +972,12 @@ def main():
         elif a == "--bitwidth":
             bitwidth = sys.argv[i + 1]
             if bitwidth == "native":
-                WORD_BYTES = struct.calcsize("P")
+                # Audio blobs are consumed by the target executable, not by
+                # the host running this generator. "native" silently made
+                # 64-bit metadata on 64-bit build hosts, invalid for wasm32.
+                # Keep native as an alias for the project's 32-bit layout;
+                # use --bitwidth 64 only for assets targeting a 64-bit runtime.
+                WORD_BYTES = 4
             else:
                 if bitwidth not in ["32", "64"]:
                     fail("--bitwidth takes argument 32, 64 or native")
