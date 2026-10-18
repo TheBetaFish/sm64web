@@ -1289,6 +1289,41 @@ void func_sh_802f3ed4(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED void *vAddr, UNUS
 }
 #endif
 
+#ifdef __EMSCRIPTEN__
+static void web_trace_bank_sample_pointers(s32 bankId) {
+    unsigned int total = 0;
+    unsigned int nullSamples = 0;
+    struct CtlEntry *entry = &gCtlEntries[bankId];
+
+    if (entry->instruments != NULL) {
+        for (u32 i = 0; i < entry->numInstruments; i++) {
+            struct Instrument *inst = entry->instruments[i];
+            if (inst == NULL) continue;
+            if (inst->normalRangeLo != 0) {
+                total++;
+                if (inst->lowNotesSound.sample == NULL) nullSamples++;
+            }
+            if (inst->normalRangeHi != 127) {
+                total++;
+                if (inst->highNotesSound.sample == NULL) nullSamples++;
+            }
+            total++;
+            if (inst->normalNotesSound.sample == NULL) nullSamples++;
+        }
+    }
+    if (entry->drums != NULL) {
+        for (u32 i = 0; i < entry->numDrums; i++) {
+            struct Drum *drum = entry->drums[i];
+            if (drum == NULL) continue;
+            total++;
+            if (drum->sound.sample == NULL) nullSamples++;
+        }
+    }
+    fprintf(stderr, "WEB TRACE: bank=%d sample pointers null=%u total=%u instruments=%p drums=%p\\n",
+            bankId, nullSamples, total, (void *)entry->instruments, (void *)entry->drums);
+}
+#endif
+
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
     UNUSED u32 pad1[4];
@@ -1314,6 +1349,9 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
     numDrums = buf[1];
     audio_dma_copy_immediate((uintptr_t)(ctlData + 0x10), ret, alloc);
     patch_audio_bank(ret, gAlTbl->seqArray[bankId].offset, numInstruments, numDrums);
+#ifdef __EMSCRIPTEN__
+    web_trace_bank_sample_pointers(bankId);
+#endif
     gCtlEntries[bankId].numInstruments = (u8) numInstruments;
     gCtlEntries[bankId].numDrums = (u8) numDrums;
     gCtlEntries[bankId].instruments = ret->instruments;
