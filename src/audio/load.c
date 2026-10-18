@@ -2021,6 +2021,9 @@ void audio_init() {
     gAlTbl = (ALSeqFile *) gShindouSampleBanksHeader;
     gAlBankSets = gBankSetsData;
     gSequenceCount = (s16) gSeqFileHeader->seqCount;
+#ifdef __EMSCRIPTEN__
+    web_audio_log_asset_sizes(gSequenceCount);
+#endif
     patch_seq_file(gSeqFileHeader, gMusicData, D_SH_80315EF4);
     patch_seq_file(gAlCtlHeader, gSoundDataADSR, D_SH_80315EF8);
     patch_seq_file(gAlTbl, gSoundDataRaw, D_SH_80315EFC);
@@ -2043,6 +2046,9 @@ void audio_init() {
     data = gMusicData;
     audio_dma_copy_immediate((uintptr_t) data, gSeqFileHeader, 0x10);
     gSequenceCount = gSeqFileHeader->seqCount;
+#ifdef __EMSCRIPTEN__
+    web_audio_log_asset_sizes(gSequenceCount);
+#endif
 #if defined(VERSION_EU)
     size = gSequenceCount * sizeof(ALSeqData) + 4;
     size = ALIGN16(size);
