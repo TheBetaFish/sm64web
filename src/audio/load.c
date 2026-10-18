@@ -1349,13 +1349,13 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
     numDrums = buf[1];
     audio_dma_copy_immediate((uintptr_t)(ctlData + 0x10), ret, alloc);
     patch_audio_bank(ret, gAlTbl->seqArray[bankId].offset, numInstruments, numDrums);
-#ifdef __EMSCRIPTEN__
-    web_trace_bank_sample_pointers(bankId);
-#endif
     gCtlEntries[bankId].numInstruments = (u8) numInstruments;
     gCtlEntries[bankId].numDrums = (u8) numDrums;
     gCtlEntries[bankId].instruments = ret->instruments;
     gCtlEntries[bankId].drums = ret->drums;
+#ifdef __EMSCRIPTEN__
+    web_trace_bank_sample_pointers(bankId);
+#endif
     gBankLoadStatus[bankId] = SOUND_LOAD_STATUS_COMPLETE;
     return ret;
 }
