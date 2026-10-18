@@ -20,6 +20,12 @@
 #include "pc/lua/smlua_hooks.h"
 #include "pc/dialog_table.h"
 #include "dialog_ids.h"
+#ifdef __EMSCRIPTEN__
+#define WEB_AUDIO_TRACE(...) do { static unsigned int web_trace_count; if (web_trace_count++ < 10) fprintf(stderr, __VA_ARGS__); } while (0)
+#else
+#define WEB_AUDIO_TRACE(...) ((void)0)
+#endif
+
 
 #if defined(VERSION_EU) || defined(VERSION_SH)
 #define EU_FLOAT(x) x##f
@@ -1779,11 +1785,11 @@ static void update_game_sound(void) {
  */
 static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: seq_player_play_sequence entered player=%u seq=%u arg=%u\n", player, seqId, arg2);
+    WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence entered player=%u seq=%u arg=%u\n", player, seqId, arg2);
 #endif
     MUTEX_LOCK(gAudioThread);
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: seq_player_play_sequence mutex locked\n");
+    WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence mutex locked\n");
 #endif
 
     if (player >= SEQUENCE_PLAYERS) { return; }
@@ -1815,11 +1821,11 @@ static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 
     gSequencePlayers[player].seqVariation = seqId & SEQ_VARIATION;
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: seq_player_play_sequence calling load_sequence player=%u seq=%u\n", player, seqId & SEQ_BASE_ID);
+    WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence calling load_sequence player=%u seq=%u\n", player, seqId & SEQ_BASE_ID);
 #endif
     load_sequence(player, seqId & SEQ_BASE_ID, 0);
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: seq_player_play_sequence load_sequence returned\n");
+    WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence load_sequence returned\n");
 #endif
 
     if (player == SEQ_PLAYER_LEVEL) {
@@ -1835,7 +1841,7 @@ static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
 
     MUTEX_UNLOCK(gAudioThread);
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: seq_player_play_sequence finished\n");
+    WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence finished\n");
 #endif
 }
 
@@ -2526,12 +2532,12 @@ void set_sequence_player_volume(s32 player, f32 volume) {
  */
 void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: play_music entered player=%u args=%u fade=%u\n", player, seqArgs, fadeTimer);
-    fprintf(stderr, "WEB TRACE: play_music locking audio mutex\n");
+    WEB_AUDIO_TRACE("WEB TRACE: play_music entered player=%u args=%u fade=%u\n", player, seqArgs, fadeTimer);
+    WEB_AUDIO_TRACE("WEB TRACE: play_music locking audio mutex\n");
 #endif
     MUTEX_LOCK(gAudioThread);
 #ifdef __EMSCRIPTEN__
-    fprintf(stderr, "WEB TRACE: play_music audio mutex locked\n");
+    WEB_AUDIO_TRACE("WEB TRACE: play_music audio mutex locked\n");
 #endif
 
     if (player >= SEQUENCE_PLAYERS) { return; }
@@ -2546,7 +2552,7 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
     // sequences. Just play them immediately, stopping any old sequence.
     if (player != SEQ_PLAYER_LEVEL) {
 #ifdef __EMSCRIPTEN__
-        fprintf(stderr, "WEB TRACE: play_music unlocking before seq_player_play_sequence player=%u seq=%u\n", player, seqId);
+        WEB_AUDIO_TRACE("WEB TRACE: play_music unlocking before seq_player_play_sequence player=%u seq=%u\n", player, seqId);
 #endif
         // seq_player_play_sequence() acquires gAudioThread itself. Do not call
         // it while holding the same mutex here, or browser builds can crash
@@ -2554,7 +2560,7 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
         MUTEX_UNLOCK(gAudioThread);
         seq_player_play_sequence(player, seqId, fadeTimer);
 #ifdef __EMSCRIPTEN__
-        fprintf(stderr, "WEB TRACE: play_music seq_player_play_sequence returned\n");
+        WEB_AUDIO_TRACE("WEB TRACE: play_music seq_player_play_sequence returned\n");
 #endif
         return;
     }
