@@ -1422,7 +1422,7 @@ struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
     numInstruments = buf[0];
     numDrums = buf[1];
 #ifdef __EMSCRIPTEN__
-    if (bankId < 3) {
+    if (sWebAudioTraceThisBank) {
         const u8 *raw = (const u8 *)ctlData;
         WEB_BANK_TRACE(bankId, "WEB TRACE: bank=%d source=%p final=%p alloc=%d raw header bytes:", bankId, (void *)ctlData, (void *)ret, alloc);
         for (int k = 0; k < 16; k++) fprintf(stderr, " %02x", raw[k]);
@@ -2208,6 +2208,11 @@ void audio_init() {
     data = gSoundDataADSR;
 #ifdef __EMSCRIPTEN__
     web_audio_dump16("ADSR first16:", gSoundDataADSR);
+    fprintf(stderr, "WEB TRACE: first CTL entry bytes:");
+    for (int k = 4; k < 12; k++) fprintf(stderr, " %02x", gSoundDataADSR[k]);
+    fprintf(stderr, " raw32[0]=0x%08x BE32[0]=0x%08x raw32[1]=0x%08x BE32[1]=0x%08x\\n",
+            *(const u32 *)(gSoundDataADSR + 4), web_audio_read_be32(gSoundDataADSR + 4),
+            *(const u32 *)(gSoundDataADSR + 8), web_audio_read_be32(gSoundDataADSR + 8));
 #endif
     audio_dma_copy_immediate((uintptr_t) data, gAlCtlHeader, 0x10);
     size = gAlCtlHeader->seqCount * sizeof(ALSeqData) + 4;
