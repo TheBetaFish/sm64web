@@ -1288,11 +1288,6 @@ void func_sh_802f3ed4(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED void *vAddr, UNUS
 
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
-#ifdef __EMSCRIPTEN__
-    (void) bankId;
-    (void) arg1;
-    return NULL;
-#endif
     UNUSED u32 pad1[4];
     u32 buf[4];
     u32 numInstruments, numDrums;
@@ -1391,11 +1386,6 @@ struct AudioBank *bank_load_async(s32 bankId, s32 arg1, struct SequencePlayer *s
 
 #ifndef VERSION_SH
 void *sequence_dma_immediate(s32 seqId, s32 arg1) {
-#ifdef __EMSCRIPTEN__
-    (void) seqId;
-    (void) arg1;
-    return NULL;
-#endif
     s32 seqLength;
     void *ptr;
     u8 *seqData;
@@ -1724,8 +1714,17 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
                 return;
             }
         }
-    } else if (load_banks_immediate(seqId, &seqPlayer->defaultBank[0]) == NULL) {
-        return;
+    } else {
+        struct AudioBank *loadedBank = load_banks_immediate(seqId, &seqPlayer->defaultBank[0]);
+#ifdef __EMSCRIPTEN__
+        if (loadedBank == NULL) {
+            fprintf(stderr, "WEB TRACE: bank load failed seq=%u defaultBank=%u; sequence player remains disabled\\n",
+                    seqId, seqPlayer->defaultBank[0]);
+        }
+#endif
+        if (loadedBank == NULL) {
+            return;
+        }
     }
 #endif
 
@@ -1752,9 +1751,18 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
 #endif
 
         if (sequenceData == NULL) {
+#ifdef __EMSCRIPTEN__
+            fprintf(stderr, "WEB TRACE: sequence data NULL after sequence_dma_immediate seq=%u\\n", seqId);
+#endif
             return;
         }
     }
+#ifdef __EMSCRIPTEN__
+    if (sequenceData == NULL) {
+        fprintf(stderr, "WEB TRACE: sequence data NULL before init_sequence_player seq=%u\\n", seqId);
+        return;
+    }
+#endif
 
     eu_stubbed_printf_1("SEQ  %d ALREADY CACHED\n", seqId);
     init_sequence_player(player);
