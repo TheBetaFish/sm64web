@@ -27,7 +27,9 @@ extern void web_audio_log_asset_sizes(unsigned int sequenceCount);
 static s32 sWebAudioBankTraceId = -1;
 static size_t sWebAudioBankCtlSize;
 
-#define WEB_BANK_TRACE(bank, ...) do { if ((bank) < 3) fprintf(stderr, __VA_ARGS__); } while (0)
+static bool sWebAudioTraceThisBank;
+static unsigned int sWebAudioTraceBankCount;
+#define WEB_BANK_TRACE(bank, ...) do { if (sWebAudioTraceThisBank) fprintf(stderr, __VA_ARGS__); } while (0)
 static u32 web_audio_read_be32(const u8 *p) {
     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | (u32)p[3];
 }
@@ -1110,7 +1112,7 @@ void patch_audio_bank(struct AudioBank *mem, u8 *offset, u32 numInstruments, u32
         fprintf(stderr, "WEB TRACE: patch_audio_bank bank=%d source=%p final=%p ctlBase=%p ctlSize=%lu rawBase=%p rawSize=%u sizeof(Instrument)=%u sizeof(Drum)=%u sizeof(AudioBankSample)=%u sizeof(AdpcmBook)=%u\\n",
                 sWebAudioBankTraceId, (void *)mem, (void *)((uintptr_t)mem + (uintptr_t)mem->instruments),
                 (void *)gSoundDataADSR, (unsigned long)sWebAudioBankCtlSize,
-                (void *)gSoundDataRaw, (unsigned)sizeof(gSoundDataRaw),
+                (void *)gSoundDataRaw, 5997056u,
                 (unsigned)sizeof(struct Instrument), (unsigned)sizeof(struct Drum),
                 (unsigned)sizeof(struct AudioBankSample), (unsigned)sizeof(struct AdpcmBook));
         WEB_BANK_TRACE(sWebAudioBankTraceId, "WEB TRACE: PATCH offsets drums=%u instruments=%u Instrument.envelope=%u AudioBankSound.sample=%u Sample.sampleAddr=%u loop=%u book=%u AdpcmBook.order=%u npredictors=%u\\n",
@@ -1381,12 +1383,12 @@ static void web_trace_bank_sample_pointers(s32 bankId) {
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
 #ifdef __EMSCRIPTEN__
-    if (bankId >= 0 && bankId < 3) {
+    sWebAudioTraceThisBank = (sWebAudioTraceBankCount++ < 3);\n    if (sWebAudioTraceThisBank) {
         const u8 *raw = (const u8 *)gAlCtlHeader->seqArray[bankId].offset;
         WEB_BANK_TRACE(bankId, "WEB TRACE: bank_load_immediate bank=%d gCtlEntries=%p entry=%p offset=%p len=%d ctlBase=%p ctlSize=%u rawCtlBytes=%02x %02x %02x %02x firstBE32=0x%08x rawBase=%p rawSize=%u\\n",
             bankId, (void *)gCtlEntries, (void *)&gCtlEntries[bankId],
             (void *)gAlCtlHeader->seqArray[bankId].offset, gAlCtlHeader->seqArray[bankId].len,
-            (void *)gSoundDataADSR, (unsigned)sizeof(gSoundDataADSR),
+            (void *)gSoundDataADSR, 193920u,
             raw[0], raw[1], raw[2], raw[3], web_audio_read_be32(raw),
             (void *)gSoundDataRaw, (unsigned)sizeof(gSoundDataRaw));
         WEB_BANK_TRACE(bankId, "WEB TRACE: entry fields offset=%p size=%d numInstruments=%u numDrums=%u instruments=%p drums=%p\\n",
