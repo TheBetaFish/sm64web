@@ -51,14 +51,14 @@ static bool web_audio_convert_seq_file(const u8 *src, size_t src_size,
     u32 count;
     size_t needed;
     if (src_size < 8 || dst_size < 4) {
-        fprintf(stderr, "WEB AUDIO ERROR: %s header too small (src=%lu dst=%lu)\\n",
+        fprintf(stderr, "WEB AUDIO ERROR: %s header too small (src=%lu dst=%lu)\n",
                 label, (unsigned long)src_size, (unsigned long)dst_size);
         return false;
     }
     count = (u32)src[2] | ((u32)src[3] << 8);
     needed = 8 + (size_t)count * 16;
     if (needed > src_size || 4 + (size_t)count * sizeof(ALSeqData) > dst_size) {
-        fprintf(stderr, "WEB AUDIO ERROR: %s header bounds invalid count=%u src=%lu dst=%lu\\n",
+        fprintf(stderr, "WEB AUDIO ERROR: %s header bounds invalid count=%u src=%lu dst=%lu\n",
                 label, count, (unsigned long)src_size, (unsigned long)dst_size);
         return false;
     }
@@ -70,7 +70,7 @@ static bool web_audio_convert_seq_file(const u8 *src, size_t src_size,
         u32 offset_hi = web_audio_read_le32(entry + 4);
         u32 len = web_audio_read_le32(entry + 8);
         if (offset_hi != 0) {
-            fprintf(stderr, "WEB AUDIO ERROR: %s entry %u offset exceeds wasm32: hi=0x%08x\\n",
+            fprintf(stderr, "WEB AUDIO ERROR: %s entry %u offset exceeds wasm32: hi=0x%08x\n",
                     label, i, offset_hi);
             return false;
         }
@@ -82,7 +82,7 @@ static bool web_audio_convert_seq_file(const u8 *src, size_t src_size,
         fprintf(stderr, " [%u off=0x%08lx len=%d]", i,
                 (unsigned long)(uintptr_t)dst->seqArray[i].offset, dst->seqArray[i].len);
     }
-    fprintf(stderr, "\\n");
+    fprintf(stderr, "\n");
     return true;
 }
 static void web_audio_dump16(const char *label, const u8 *p) {
@@ -2247,7 +2247,7 @@ void audio_init() {
     gSeqFileHeader = soundAlloc(&gAudioInitPool, size);
     if (gSeqFileHeader == NULL ||
         !web_audio_convert_seq_file(gMusicData, 0x1ca00, gSeqFileHeader, size, "sequences")) {
-        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid sequence header\\n");
+        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid sequence header\n");
         return;
     }
     alSeqFileNew(gSeqFileHeader, data);
@@ -2272,17 +2272,17 @@ void audio_init() {
     web_audio_dump16("ADSR first16:", gSoundDataADSR);
     fprintf(stderr, "WEB TRACE: first CTL entry bytes:");
     for (int k = 8; k < 16; k++) fprintf(stderr, " %02x", gSoundDataADSR[k]);
-    fprintf(stderr, "\\n");
-    fprintf(stderr, "WEB TRACE: raw32[0]=0x%08x BE32[0]=0x%08x raw32[1]=0x%08x BE32[1]=0x%08x\\n",
+    fprintf(stderr, "\n");
+    fprintf(stderr, "WEB TRACE: raw32[0]=0x%08x BE32[0]=0x%08x raw32[1]=0x%08x BE32[1]=0x%08x\n",
             *(const u32 *)(gSoundDataADSR + 8), web_audio_read_be32(gSoundDataADSR + 8),
             *(const u32 *)(gSoundDataADSR + 12), web_audio_read_be32(gSoundDataADSR + 12));
-    gSequenceCount = (s16)((u16)gSoundDataADSR[2] | ((u16)gSoundDataADSR[3] << 8));
-    size = ALIGN16((size_t)gSequenceCount * sizeof(ALSeqData) + 4);
-    gCtlEntries = soundAlloc(&gAudioInitPool, gSequenceCount * sizeof(struct CtlEntry));
+    u32 ctlCount = (u32)gSoundDataADSR[2] | ((u32)gSoundDataADSR[3] << 8);
+    size = ALIGN16((size_t)ctlCount * sizeof(ALSeqData) + 4);
+    gCtlEntries = soundAlloc(&gAudioInitPool, ctlCount * sizeof(struct CtlEntry));
     gAlCtlHeader = soundAlloc(&gAudioInitPool, size);
     if (gCtlEntries == NULL || gAlCtlHeader == NULL ||
         !web_audio_convert_seq_file(gSoundDataADSR, 193920, gAlCtlHeader, size, "CTL")) {
-        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid CTL header\\n");
+        fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid CTL header\n");
         return;
     }
 #else
@@ -2304,7 +2304,7 @@ void audio_init() {
         gAlTbl = soundAlloc(&gAudioInitPool, size);
         if (gAlTbl == NULL ||
             !web_audio_convert_seq_file(gSoundDataRaw, 5997056, gAlTbl, size, "TBL")) {
-            fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid TBL header\\n");
+            fprintf(stderr, "WEB AUDIO ERROR: refusing to initialize invalid TBL header\n");
             return;
         }
     }
