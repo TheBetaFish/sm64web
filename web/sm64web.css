@@ -61,3 +61,14 @@ body:has(#sm64web-stage:fullscreen) #sm64web-header,body:has(#sm64web-stage:full
 
 /* Relay controls are a hidden transport backend; room interaction is rendered by DJUI in-game. */
 #sm64web-relay{display:none!important}
+
+
+/* Full-viewport play mode: the game is the page, not a framed embed. */
+html,body{width:100%;height:100%;min-height:100%;margin:0;padding:0;overflow:hidden}
+body{display:block;gap:0}
+#sm64web-header,#sm64web-controls{display:none!important}
+#sm64web-stage{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;min-height:0;max-width:none;max-height:none;aspect-ratio:auto;margin:0;padding:0;border:0;box-shadow:none;overflow:hidden;background:#000}
+#sm64web-stage canvas,#sm64web-stage #canvas{width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:0;margin:0;padding:0}
+#sm64web-stage:fullscreen{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh}
+#sm64web-stage:fullscreen canvas{width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
+#sm64web-stage.sm64web-fullscreen-fallback{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:99999}
