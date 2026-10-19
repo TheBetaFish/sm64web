@@ -1792,7 +1792,10 @@ static void seq_player_play_sequence(u8 player, u8 seqId, u16 arg2) {
     WEB_AUDIO_TRACE("WEB TRACE: seq_player_play_sequence mutex locked\n");
 #endif
 
-    if (player >= SEQUENCE_PLAYERS) { return; }
+    if (player >= SEQUENCE_PLAYERS) {
+        MUTEX_UNLOCK(gAudioThread);
+        return;
+    }
     u8 targetVolume;
     u8 i;
 
@@ -2540,7 +2543,10 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
     WEB_AUDIO_TRACE("WEB TRACE: play_music audio mutex locked\n");
 #endif
 
-    if (player >= SEQUENCE_PLAYERS) { return; }
+    if (player >= SEQUENCE_PLAYERS) {
+        MUTEX_UNLOCK(gAudioThread);
+        return;
+    }
     u8 seqId = seqArgs & 0xff;
     u8 priority = seqArgs >> 8;
     u8 i;
@@ -2568,6 +2574,7 @@ void play_music(u8 player, u16 seqArgs, u16 fadeTimer) {
     // Abort if the queue is already full.
     if (sBackgroundMusicQueueSize == MAX_BACKGROUND_MUSIC_QUEUE_SIZE) {
         LOG_DEBUG("Background music queue reached max size! Ignoring request to queue sequence %d.", seqId);
+        MUTEX_UNLOCK(gAudioThread);
         return;
     }
 
