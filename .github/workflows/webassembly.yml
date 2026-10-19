@@ -47,6 +47,18 @@ jobs:
           mkdir -p lib/lua/emscripten
           cp /tmp/lua-5.3.6/src/liblua.a lib/lua/emscripten/liblua53.a
 
+      - name: Rebuild audio banks with wasm32 pointer layout
+        shell: bash
+        run: |
+          set -euxo pipefail
+          make -C tools
+          mapfile -t sample_targets < <(find sound/samples -type f -name '*.aiff' -print | sed 's#^sound/#build/us_pc/sound/#; s/\.aiff$/.aifc/')
+          make -j2 "${sample_targets[@]}"
+          python3 tools/assemble_web_audio.py --endian little --bitwidth 64 \
+            build/us_pc/sound/samples sound/sound_banks \
+            build/us_pc/sound/sound_data.ctl build/us_pc/sound/ctl_header \
+            sound/sound_data.tbl build/us_pc/sound/tbl_header
+
       - name: Prepare zlib headers for WebAssembly
         shell: bash
         run: |
