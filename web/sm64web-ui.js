@@ -163,60 +163,207 @@ function setup(){
     }
     status(locked?"Camera locked — mouse movement is mapped to arrow keys; right-click to release.":"Camera unlocked.");
   });
-  var picker=document.createElement("input");picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
-  function startSolo(){var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return;}m._sm64web_start_solo();}
-  function saveProgress(){
+  var SAVE_API_URL="https://pjpnndbdbcoqvafklplb.supabase.co";
+  var SAVE_API_KEY="sb_publishable_Fp4sP_IQhNjmHFD2wNJ7Pw_CqE-jhZd";
+  var LOCAL_SAVE_KEY="sm64web-local-save-v1";
+  var picker=document.createElement("input");
+  picker.type="file";picker.accept=".txt,.json,application/json,text/plain";picker.hidden=true;picker.id="sm64web-load-file";document.body.appendChild(picker);
+  var saveDialog=null,saveMessage=null,saveCodeInput=null,saveCodeDisplay=null;
+  function api(){return window.Module||{};}
+  function startSolo(){var m=api();if(typeof m._sm64web_start_solo!=="function"){status("Solo start is unavailable in this build.");return false;}m._sm64web_start_solo();return true;}
+  function snapshotSave(){
     var m=api();
-    if(typeof m._sm64web_get_save_buffer!=="function"||typeof m._sm64web_get_save_buffer_size!=="function"){status("Save export is not available in this build yet.");return false;}
-    try{
-      var ptr=m._sm64web_get_save_buffer(),size=m._sm64web_get_save_buffer_size();
-      var bytes=new Uint8Array(m.HEAPU8.buffer,ptr,size),hex="";
-      for(var i=0;i<bytes.length;i++)hex+=bytes[i].toString(16).padStart(2,"0");
-      var slot=typeof m._sm64web_get_current_save_slot==="function"?m._sm64web_get_current_save_slot():1;
-      var blob=new Blob([JSON.stringify({format:"sm64web-save-v1",activeSlot:slot,data:hex},null,2)],{type:"text/plain"});
-      var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="sm64web-progress.txt";a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);status("Save file exported.");return true;
-    }catch(e){status("Could not save progress: "+e.message);return false;}
+    if(typeof m._sm64web_get_save_buffer!=="function"||typeof m._sm64web_get_save_buffer_size!=="function"||!m.HEAPU8)throw new Error("Save support is missing from this WebAssembly build.");
+    var ptr=m._sm64web_get_save_buffer(),size=m._sm64web_get_save_buffer_size();
+    if(!ptr||size!==512)throw new Error("Unexpected save-buffer size; expected 512 bytes.");
+    var bytes=new Uint8Array(m.HEAPU8.buffer,ptr,size).slice(),hex="";
+    for(var i=0;i<bytes.length;i++)hex+=bytes[i].toString(16).padStart(2,"0");
+    var slot=typeof m._sm64web_get_current_save_slot==="function"?m._sm64web_get_current_save_slot():1;
+    if(!Number.isInteger(slot)||slot<1||slot>4)slot=1;
+    return {format:"sm64web-save-v1",activeSlot:slot,data:hex};
   }
-  window.sm64webSaveProgress=saveProgress;
-  window.sm64webLoadProgress=function(){picker.click();};
+  function storeLocal(obj){
+    try{localStorage.setItem(LOCAL_SAVE_KEY,JSON.stringify(obj));return true;}
+    catch(e){console.warn("Could not persist local save:",e);return false;}
+  }
+  function persistCurrentSave(){
+    try{
+      var obj=snapshotSave();
+      if(!storeLocal(obj))throw new Error("Browser storage is unavailable.");
+      status("Game saved in this browser.");
+      return obj;
+    }catch(e){status("Could not save progress: "+e.message);return null;}
+  }
+  function validateSave(obj){
+    if(!obj||obj.format!=="sm64web-save-v1"||typeof obj.data!=="string"||obj.data.length!==1024||!/^[0-9a-f]{1024}$/i.test(obj.data))throw new Error("This is not a valid SM64 Web save.");
+    var slot=Number(obj.activeSlot);
+    if(!Number.isInteger(slot)||slot<1||slot>4)slot=1;
+    return {format:"sm64web-save-v1",activeSlot:slot,data:obj.data.toLowerCase()};
+  }
+  function importSaveNow(obj){
+    var imported=validateSave(obj),m=api();
+    if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function"||!m.HEAPU8)throw new Error("Save import is not available in this build.");
+    var bytes=new Uint8Array(512);
+    for(var i=0;i<bytes.length;i++)bytes[i]=parseInt(imported.data.slice(i*2,i*2+2),16);
+    if(typeof m._sm64web_set_save_slot==="function")m._sm64web_set_save_slot(imported.activeSlot);
+    var ptr=m._malloc(bytes.length);
+    if(!ptr)throw new Error("Not enough memory to load the save.");
+    try{
+      m.HEAPU8.set(bytes,ptr);
+      if(m._sm64web_import_save_buffer(ptr,bytes.length)!==1)throw new Error("The game rejected this save.");
+    }finally{m._free(ptr);}
+    storeLocal(imported);
+    return imported;
+  }
+  function bufferFingerprint(){
+    try{
+      var s=snapshotSave();return s.data;
+    }catch(_){return null;}
+  }
+  function startAndApplySave(obj){
+    var imported=validateSave(obj);
+    if(!startSolo())return;
+    status("Starting solo mode and preparing the save…");
+    // Solo host initialization can reload EEPROM after the menu closes.
+    // Wait for the save buffer to settle after startup instead of racing a single
+    // fixed delay, then apply the imported buffer once.
+    var began=Date.now(),lastFingerprint=null,stableSamples=0;
+    function waitForReady(){
+      var fingerprint=bufferFingerprint();
+      if(fingerprint&&fingerprint===lastFingerprint)stableSamples++;else stableSamples=0;
+      lastFingerprint=fingerprint;
+      if(Date.now()-began>=1200&&stableSamples>=3){
+        try{
+          var applied=importSaveNow(imported);
+          status("Save loaded successfully (slot "+applied.activeSlot+").");
+        }catch(e){status("Save load failed: "+e.message);}
+        return;
+      }
+      if(Date.now()-began>10000){
+        try{importSaveNow(imported);status("Save loaded (slot "+imported.activeSlot+").");}
+        catch(e){status("Save load failed: "+e.message);}
+        return;
+      }
+      window.setTimeout(waitForReady,200);
+    }
+    window.setTimeout(waitForReady,200);
+  }
+  async function saveRpc(functionName,args){
+    var response=await fetch(SAVE_API_URL+"/rest/v1/rpc/"+functionName,{
+      method:"POST",
+      headers:{"apikey":SAVE_API_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify(args)
+    });
+    if(!response.ok){
+      var detail=await response.text();
+      throw new Error("Online save service returned "+response.status+(detail?": "+detail.slice(0,180):"")+". Apply the SM64 Web save-code SQL migration in Supabase if this is a new setup.");
+    }
+    return response.json();
+  }
+  function setSaveMessage(message){if(saveMessage)saveMessage.textContent=message;status(message);}
+  function downloadSave(){
+    try{
+      var obj=persistCurrentSave();if(!obj)return;
+      var blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json"});
+      var url=URL.createObjectURL(blob),a=document.createElement("a");
+      a.href=url;a.download="sm64web-progress.json";a.click();
+      window.setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      setSaveMessage("Backup file downloaded. A copy is also saved in this browser.");
+    }catch(e){setSaveMessage("Could not export save: "+e.message);}
+  }
+  async function createShareCode(){
+    try{
+      var obj=persistCurrentSave();if(!obj)throw new Error("Could not read the current game save.");
+      setSaveMessage("Uploading save and creating a code…");
+      var result=await saveRpc("sm64web_save_create",{p_data:obj.data,p_active_slot:obj.activeSlot});
+      var code=typeof result==="string"?result:(result&&result.code);
+      if(!/^[0-9]{10}$/.test(String(code||"")))throw new Error("The save service returned an invalid code.");
+      if(saveCodeDisplay){saveCodeDisplay.textContent=code;saveCodeDisplay.style.display="block";}
+      if(saveCodeInput)saveCodeInput.value=code;
+      setSaveMessage("Online save created. Share this 10-digit code: "+code);
+    }catch(e){setSaveMessage("Could not create online save: "+e.message);}
+  }
+  async function loadShareCode(){
+    var code=saveCodeInput?saveCodeInput.value.trim():"";
+    if(!/^[0-9]{10}$/.test(code)){setSaveMessage("Enter all 10 digits of the save code.");return;}
+    setSaveMessage("Looking up save code…");
+    try{
+      var result=await saveRpc("sm64web_save_load",{p_code:code});
+      if(!result)throw new Error("No save was found for that code.");
+      var obj=validateSave(result);
+      setSaveMessage("Save found. Starting the game…");
+      if(saveDialog)saveDialog.hidden=true;
+      startAndApplySave(obj);
+    }catch(e){setSaveMessage("Could not load save: "+e.message);}
+  }
+  function loadLocalSave(){
+    try{
+      var raw=localStorage.getItem(LOCAL_SAVE_KEY);
+      if(!raw)throw new Error("There is no local save in this browser yet.");
+      var obj=validateSave(JSON.parse(raw));
+      if(saveDialog)saveDialog.hidden=true;
+      startAndApplySave(obj);
+    }catch(e){setSaveMessage("Could not load local save: "+e.message);}
+  }
+  function loadSaveFile(){
+    picker.value="";
+    picker.click();
+  }
+  function showSaveDialog(){
+    if(!saveDialog){
+      saveDialog=document.createElement("section");
+      saveDialog.id="sm64web-save-dialog";
+      saveDialog.setAttribute("role","dialog");
+      saveDialog.setAttribute("aria-modal","true");
+      saveDialog.setAttribute("aria-label","SM64 Web save manager");
+      saveDialog.style.cssText="position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.82);font:16px Arial,sans-serif;color:#fff";
+      var card=document.createElement("div");
+      card.style.cssText="width:min(100%,520px);max-height:90vh;overflow:auto;box-sizing:border-box;padding:24px;border:3px solid #fff;background:#174bb5;box-shadow:0 0 0 4px #17377d";
+      var heading=document.createElement("h2");heading.textContent="SM64 Web Saves";heading.style.cssText="margin:0 0 10px;color:#fff36a";
+      var intro=document.createElement("p");intro.textContent="Save in this browser, download a backup, or create a 10-digit code to move your progress to another device.";intro.style.cssText="line-height:1.45";
+      saveMessage=document.createElement("p");saveMessage.setAttribute("role","status");saveMessage.style.cssText="min-height:40px;line-height:1.4;color:#fff36a;overflow-wrap:anywhere";
+      saveCodeDisplay=document.createElement("div");saveCodeDisplay.style.cssText="display:none;margin:12px 0;padding:12px;border:2px solid #fff36a;background:#102d70;font:bold 28px monospace;letter-spacing:.12em;text-align:center;overflow-wrap:anywhere";
+      saveCodeInput=document.createElement("input");saveCodeInput.type="text";saveCodeInput.inputMode="numeric";saveCodeInput.autocomplete="off";saveCodeInput.maxLength=10;saveCodeInput.placeholder="Enter 10-digit save code";saveCodeInput.setAttribute("aria-label","10-digit save code");saveCodeInput.style.cssText="display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:12px;border:2px solid #fff;background:#071a42;color:#fff;font:22px monospace;letter-spacing:.12em";
+      saveCodeInput.addEventListener("input",function(){saveCodeInput.value=saveCodeInput.value.replace(/\\D/g,"").slice(0,10);});
+      ["keydown","keyup","keypress","pointerdown","click"].forEach(function(type){saveCodeInput.addEventListener(type,function(e){e.stopPropagation();});});
+      var buttons=document.createElement("div");buttons.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px";
+      function addButton(label,callback){var b=document.createElement("button");b.type="button";b.textContent=label;b.style.cssText="min-height:42px;padding:10px 8px;border:2px solid #fff;background:#245fc9;color:#fff36a;font:bold 13px Arial,sans-serif;cursor:pointer";b.addEventListener("click",callback);buttons.appendChild(b);return b;}
+      addButton("Save online / create code",createShareCode);
+      addButton("Load code",loadShareCode);
+      addButton("Load this browser's save",loadLocalSave);
+      addButton("Download backup file",downloadSave);
+      addButton("Import backup file",loadSaveFile);
+      addButton("Close",function(){saveDialog.hidden=true;});
+      card.appendChild(heading);card.appendChild(intro);card.appendChild(saveMessage);card.appendChild(saveCodeDisplay);card.appendChild(saveCodeInput);card.appendChild(buttons);saveDialog.appendChild(card);document.body.appendChild(saveDialog);
+      saveDialog.hidden=true;
+      saveDialog.addEventListener("click",function(e){if(e.target===saveDialog)saveDialog.hidden=true;});
+      document.addEventListener("keydown",function(e){if(e.key==="Escape"&&saveDialog&&!saveDialog.hidden){saveDialog.hidden=true;e.stopPropagation();}},true);
+    }
+    saveDialog.hidden=false;
+    var saved=persistCurrentSave();
+    if(saved)setSaveMessage("Current progress saved in this browser. Create a code to share it online.");
+    else setSaveMessage("Save manager opened. Start a solo game before saving progress.");
+  }
+  window.sm64webSaveProgress=showSaveDialog;
+  window.sm64webLoadProgress=showSaveDialog;
   picker.addEventListener("change",function(){
     var file=picker.files&&picker.files[0];if(!file)return;
-    status("Reading save file…");
+    setSaveMessage("Reading save file…");
     var reader=new FileReader();
-    reader.onerror=function(){status("Could not read that save file.");};
+    reader.onerror=function(){setSaveMessage("Could not read that save file.");};
     reader.onload=function(){
       try{
-        var obj=JSON.parse(String(reader.result));
-        if(!obj||obj.format!=="sm64web-save-v1"||typeof obj.data!=="string"||obj.data.length%2||!/^[0-9a-f]*$/i.test(obj.data))throw new Error("This is not a valid sm64web save file.");
-        var m=api();
-        if(typeof m._sm64web_import_save_buffer!=="function"||typeof m._malloc!=="function"||typeof m._free!=="function")throw new Error("Save import is not available in this build yet.");
-        var size=obj.data.length/2;
-        if(typeof m._sm64web_get_save_buffer_size==="function"&&size!==m._sm64web_get_save_buffer_size())throw new Error("This save has the wrong size for this build.");
-        var importedBytes=new Uint8Array(size);
-        for(var i=0;i<size;i++)importedBytes[i]=parseInt(obj.data.slice(i*2,i*2+2),16);
-        var slot=Number(obj.activeSlot);
-        if(!Number.isInteger(slot)||slot<1||slot>4)slot=1;
-        if(typeof m._sm64web_set_save_slot==="function")m._sm64web_set_save_slot(slot);
-        status("Starting solo mode with save slot "+slot+"…");
-        startSolo();
-        // Apply only after session initialization, which can reload EEPROM-backed data.
-        window.setTimeout(function(){
-          try{
-            var live=api();
-            if(typeof live._sm64web_import_save_buffer!=="function"||typeof live._malloc!=="function"||typeof live._free!=="function")throw new Error("Save import is not available.");
-            var liveSize=typeof live._sm64web_get_save_buffer_size==="function"?live._sm64web_get_save_buffer_size():importedBytes.length;
-            if(liveSize!==importedBytes.length)throw new Error("Save file is incompatible with this build.");
-            var livePtr=live._malloc(importedBytes.length);if(!livePtr)throw new Error("Not enough memory.");
-            try{live.HEAPU8.set(importedBytes,livePtr);if(live._sm64web_import_save_buffer(livePtr,importedBytes.length)!==1)throw new Error("Save file is incompatible with this build.");}
-            finally{live._free(livePtr);}
-            status("Save loaded (slot "+slot+").");
-          }catch(e){status("Save apply failed: "+e.message);}
-        },1200);
-      }catch(e){status("Load failed: "+e.message);}
+        var obj=validateSave(JSON.parse(String(reader.result)));
+        if(saveDialog)saveDialog.hidden=true;
+        startAndApplySave(obj);
+      }catch(e){setSaveMessage("Load failed: "+e.message);}
       picker.value="";
     };
     reader.readAsText(file);
   });
+  // Keep local progress resilient across refreshes. This only snapshots when
+  // the user saves or opens the save manager, avoiding overwriting a good save
+  // with the untouched main-menu buffer.
   // Multiplayer lobby controls use the hosted relay by default. Game packet
   // synchronization remains experimental until verified in two browser sessions.
   var relayUrl=document.getElementById("sm64web-relay-url");
