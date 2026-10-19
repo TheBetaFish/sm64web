@@ -292,7 +292,7 @@ function setup(){
       if(!result)throw new Error("No save was found for that code.");
       var obj=validateSave(result);
       setSaveMessage("Save found. Starting the game…");
-      if(saveDialog)saveDialog.hidden=true;
+      if(saveDialog)saveDialog.style.display="none";
       startAndApplySave(obj);
     }catch(e){setSaveMessage("Could not load save: "+e.message);}
   }
@@ -316,7 +316,7 @@ function setup(){
       saveDialog.setAttribute("role","dialog");
       saveDialog.setAttribute("aria-modal","true");
       saveDialog.setAttribute("aria-label","SM64 Web save manager");
-      saveDialog.style.cssText="position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.82);font:16px Arial,sans-serif;color:#fff";
+      saveDialog.style.cssText="position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.82);font:16px Arial,sans-serif;color:#fff";
       var card=document.createElement("div");
       card.style.cssText="width:min(100%,520px);max-height:90vh;overflow:auto;box-sizing:border-box;padding:24px;border:3px solid #fff;background:#174bb5;box-shadow:0 0 0 4px #17377d";
       var heading=document.createElement("h2");heading.textContent="SM64 Web Saves";heading.style.cssText="margin:0 0 10px;color:#fff36a";
@@ -324,7 +324,7 @@ function setup(){
       saveMessage=document.createElement("p");saveMessage.setAttribute("role","status");saveMessage.style.cssText="min-height:40px;line-height:1.4;color:#fff36a;overflow-wrap:anywhere";
       saveCodeDisplay=document.createElement("div");saveCodeDisplay.style.cssText="display:none;margin:12px 0;padding:12px;border:2px solid #fff36a;background:#102d70;font:bold 28px monospace;letter-spacing:.12em;text-align:center;overflow-wrap:anywhere";
       saveCodeInput=document.createElement("input");saveCodeInput.type="text";saveCodeInput.inputMode="numeric";saveCodeInput.autocomplete="off";saveCodeInput.maxLength=10;saveCodeInput.placeholder="Enter 10-digit save code";saveCodeInput.setAttribute("aria-label","10-digit save code");saveCodeInput.style.cssText="display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:12px;border:2px solid #fff;background:#071a42;color:#fff;font:22px monospace;letter-spacing:.12em";
-      saveCodeInput.addEventListener("input",function(){saveCodeInput.value=saveCodeInput.value.replace(/\\D/g,"").slice(0,10);});
+      saveCodeInput.addEventListener("input",function(){saveCodeInput.value=saveCodeInput.value.replace(/\D/g,"").slice(0,10);});
       ["keydown","keyup","keypress","pointerdown","click"].forEach(function(type){saveCodeInput.addEventListener(type,function(e){e.stopPropagation();});});
       var buttons=document.createElement("div");buttons.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px";
       function addButton(label,callback){var b=document.createElement("button");b.type="button";b.textContent=label;b.style.cssText="min-height:42px;padding:10px 8px;border:2px solid #fff;background:#245fc9;color:#fff36a;font:bold 13px Arial,sans-serif;cursor:pointer";b.addEventListener("click",callback);buttons.appendChild(b);return b;}
@@ -339,7 +339,7 @@ function setup(){
       saveDialog.addEventListener("click",function(e){if(e.target===saveDialog)saveDialog.hidden=true;});
       document.addEventListener("keydown",function(e){if(e.key==="Escape"&&saveDialog&&!saveDialog.hidden){saveDialog.hidden=true;e.stopPropagation();}},true);
     }
-    saveDialog.hidden=false;
+    saveDialog.style.display="flex";
     var saved=persistCurrentSave();
     if(saved)setSaveMessage("Current progress saved in this browser. Create a code to share it online.");
     else setSaveMessage("Save manager opened. Start a solo game before saving progress.");
