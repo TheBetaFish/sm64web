@@ -1,4 +1,7 @@
 #include <unistd.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 #include "mods.h"
 #include "mods_utils.h"
 #include "mod_cache.h"
@@ -365,7 +368,7 @@ int sm64web_install_lua_mod(const char* filename, const char* contents, size_t s
     if (!filename || !contents || size == 0 || size > MAX_MOD_SIZE) {
         return 0;
     }
-    if (strchr(filename, '/') || strchr(filename, '\\\\') ||
+    if (strchr(filename, '/') || strchr(filename, '\\') ||
         strstr(filename, "..") || !path_ends_with((char*)filename, ".lua")) {
         return 0;
     }
