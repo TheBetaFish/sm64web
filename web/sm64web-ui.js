@@ -309,7 +309,7 @@ function setup(){
     picker.value="";
     picker.click();
   }
-  function showSaveDialog(){
+  function showSaveDialog(saveCurrent){
     if(!saveDialog){
       saveDialog=document.createElement("section");
       saveDialog.id="sm64web-save-dialog";
@@ -340,12 +340,13 @@ function setup(){
       document.addEventListener("keydown",function(e){if(e.key==="Escape"&&saveDialog&&saveDialog.style.display!=="none"){saveDialog.style.display="none";e.stopPropagation();}},true);
     }
     saveDialog.style.display="flex";
-    var saved=persistCurrentSave();
-    if(saved)setSaveMessage("Current progress saved in this browser. Create a code to share it online.");
-    else setSaveMessage("Save manager opened. Start a solo game before saving progress.");
+    var saved=saveCurrent?persistCurrentSave():null;
+    if(saveCurrent&&saved)setSaveMessage("Current progress saved in this browser. Create a code to share it online.");
+    else if(saveCurrent)setSaveMessage("Save manager opened, but the current game buffer could not be saved.");
+    else setSaveMessage("Load a 10-digit code, restore this browser's save, or import a backup file.");
   }
-  window.sm64webSaveProgress=showSaveDialog;
-  window.sm64webLoadProgress=showSaveDialog;
+  window.sm64webSaveProgress=function(){showSaveDialog(true);};
+  window.sm64webLoadProgress=function(){showSaveDialog(false);};
   picker.addEventListener("change",function(){
     var file=picker.files&&picker.files[0];if(!file)return;
     setSaveMessage("Reading save file…");
