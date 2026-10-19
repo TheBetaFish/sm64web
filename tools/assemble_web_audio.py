@@ -13,11 +13,11 @@ import assemble_sound
 _original_serialize_ctl = assemble_sound.serialize_ctl
 
 
-def _serialize_ctl_wasm32(bank, base_ser, is_shindou):
+def _serialize_ctl_wasm32(bank, base_ser, is_shindou, asset_offsets):
     original_word_bytes = assemble_sound.WORD_BYTES
     assemble_sound.WORD_BYTES = 4
     try:
-        return _original_serialize_ctl(bank, base_ser, is_shindou)
+        return _original_serialize_ctl(bank, base_ser, is_shindou, asset_offsets)
     finally:
         assemble_sound.WORD_BYTES = original_word_bytes
 
