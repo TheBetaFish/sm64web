@@ -301,7 +301,7 @@ function setup(){
       var raw=localStorage.getItem(LOCAL_SAVE_KEY);
       if(!raw)throw new Error("There is no local save in this browser yet.");
       var obj=validateSave(JSON.parse(raw));
-      if(saveDialog)saveDialog.hidden=true;
+      if(saveDialog)saveDialog.style.display="none";
       startAndApplySave(obj);
     }catch(e){setSaveMessage("Could not load local save: "+e.message);}
   }
@@ -333,11 +333,11 @@ function setup(){
       addButton("Load this browser's save",loadLocalSave);
       addButton("Download backup file",downloadSave);
       addButton("Import backup file",loadSaveFile);
-      addButton("Close",function(){saveDialog.hidden=true;});
+      addButton("Close",function(){saveDialog.style.display="none";});
       card.appendChild(heading);card.appendChild(intro);card.appendChild(saveMessage);card.appendChild(saveCodeDisplay);card.appendChild(saveCodeInput);card.appendChild(buttons);saveDialog.appendChild(card);document.body.appendChild(saveDialog);
-      saveDialog.hidden=true;
-      saveDialog.addEventListener("click",function(e){if(e.target===saveDialog)saveDialog.hidden=true;});
-      document.addEventListener("keydown",function(e){if(e.key==="Escape"&&saveDialog&&!saveDialog.hidden){saveDialog.hidden=true;e.stopPropagation();}},true);
+      saveDialog.style.display="none";
+      saveDialog.addEventListener("click",function(e){if(e.target===saveDialog)saveDialog.style.display="none";});
+      document.addEventListener("keydown",function(e){if(e.key==="Escape"&&saveDialog&&saveDialog.style.display!=="none"){saveDialog.style.display="none";e.stopPropagation();}},true);
     }
     saveDialog.style.display="flex";
     var saved=persistCurrentSave();
@@ -354,7 +354,7 @@ function setup(){
     reader.onload=function(){
       try{
         var obj=validateSave(JSON.parse(String(reader.result)));
-        if(saveDialog)saveDialog.hidden=true;
+        if(saveDialog)saveDialog.style.display="none";
         startAndApplySave(obj);
       }catch(e){setSaveMessage("Load failed: "+e.message);}
       picker.value="";
