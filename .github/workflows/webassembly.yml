@@ -51,9 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          # The normal sound bank set references original-ROM sample banks such
-          # as sfx_1. CI does not have the user's ROM, so rebuilding from only
-          # the custom AIFF sources would fail and produce an incomplete bank set.
+          # ROM-derived sample banks are not present in a clean checkout.
+          # Do not fail the browser build by trying to assemble an incomplete set.
           if [[ -d sound/samples/sfx_1 ]]; then
             make -C tools
             mapfile -t sample_targets < <(find sound/samples -type f -name '*.aiff' -print | sed 's#^sound/#build/us_pc/sound/#; s/\.aiff$/.aifc/')
@@ -62,8 +61,9 @@ jobs:
               build/us_pc/sound/samples sound/sound_banks \
               build/us_pc/sound/sound_data.ctl build/us_pc/sound/ctl_header \
               sound/sound_data.tbl build/us_pc/sound/tbl_header
+
           else
-            echo "Skipping audio-bank regeneration: required ROM-derived sample bank sound/samples/sfx_1 is unavailable."
+            echo "Skipping audio-bank regeneration: ROM-derived sample bank sound/samples/sfx_1 is unavailable."
           fi
 
       - name: Prepare zlib headers for WebAssembly
