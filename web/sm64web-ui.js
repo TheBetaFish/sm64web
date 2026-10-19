@@ -40,6 +40,44 @@ function setup(){
   var controls=document.createElement("footer");controls.id="sm64web-controls";
   controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Press F to toggle fullscreen.</span></div><section id="sm64web-relay" aria-label="Multiplayer"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="wss://sm64web-relay.onrender.com/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Multiplayer server not connected.</span></div></section>';
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
+  // Lightweight FPS graph overlay. It observes browser frame pacing without
+  // replacing Emscripten's Module object or interfering with the game's canvas.
+  var fpsGraph=document.createElement("div");
+  fpsGraph.id="sm64web-fps-graph";
+  fpsGraph.setAttribute("aria-label","Browser frame rate");
+  fpsGraph.innerHTML='<canvas id="sm64web-fps-canvas" width="180" height="50"></canvas><span id="sm64web-fps-label">-- FPS</span>';
+  stage.appendChild(fpsGraph);
+  var fpsCanvas=fpsGraph.querySelector("canvas");
+  var fpsContext=fpsCanvas.getContext("2d");
+  var fpsSamples=[],fpsLast=performance.now(),fpsFrames=0,fpsHideTimer=null;
+  function drawFps(now){
+    var delta=(now-fpsLast)/1000;
+    fpsLast=now;
+    if(delta>0&&delta<1)fpsSamples.push(1/delta);
+    if(fpsSamples.length>90)fpsSamples.shift();
+    fpsFrames++;
+    if(fpsFrames%3===0&&fpsContext){
+      fpsContext.clearRect(0,0,180,50);
+      var maxFps=Math.max(60,...fpsSamples);
+      for(var i=0;i<fpsSamples.length;i++){
+        var value=fpsSamples[i],height=Math.min(50,value/maxFps*42);
+        fpsContext.fillStyle=value>=50?"#48f078":value>=30?"#ffd34e":"#ff5555";
+        fpsContext.fillRect(i*2,50-height,1.6,height);
+      }
+      var average=fpsSamples.length?fpsSamples.reduce(function(sum,value){return sum+value;},0)/fpsSamples.length:0;
+      var label=document.getElementById("sm64web-fps-label");
+      if(label)label.textContent=Math.round(average)+" FPS";
+    }
+    window.requestAnimationFrame(drawFps);
+  }
+  window.requestAnimationFrame(drawFps);
+  function revealFps(){
+    fpsGraph.classList.remove("sm64web-fps-hidden");
+    if(fpsHideTimer)window.clearTimeout(fpsHideTimer);
+    fpsHideTimer=window.setTimeout(function(){fpsGraph.classList.add("sm64web-fps-hidden");},5000);
+  }
+  document.addEventListener("keydown",revealFps,true);
+  document.addEventListener("pointermove",function(){fpsGraph.classList.remove("sm64web-fps-hidden");if(fpsHideTimer)window.clearTimeout(fpsHideTimer);fpsHideTimer=window.setTimeout(function(){fpsGraph.classList.add("sm64web-fps-hidden");},5000);},{passive:true});
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
   // Right-click toggles camera mode; it is a click, not a hold modifier.
