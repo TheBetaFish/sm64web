@@ -1,7 +1,4 @@
 #include <unistd.h>
-#ifdef __EMSCRIPTEN__
-#include <emscripten/emscripten.h>
-#endif
 #include "mods.h"
 #include "mods_utils.h"
 #include "mod_cache.h"
@@ -356,49 +353,3 @@ void mods_shutdown(void) {
     mods_clear(&gRemoteMods);
     mods_clear(&gLocalMods);
 }
-
-
-#ifdef __EMSCRIPTEN__
-/*
- * Browser mod-install bridge. The filename is restricted to one Lua filename
- * so uploads cannot escape the game's writable mods directory.
- */
-EMSCRIPTEN_KEEPALIVE
-int sm64web_install_lua_mod(const char* filename, const char* contents, size_t size) {
-    if (!filename || !contents || size == 0 || size > MAX_MOD_SIZE) {
-        return 0;
-    }
-    if (strchr(filename, '/') || strchr(filename, '\\') ||
-        strstr(filename, "..") || !path_ends_with((char*)filename, ".lua")) {
-        return 0;
-    }
-
-    char modsPath[SYS_MAX_PATH] = { 0 };
-    if (snprintf(modsPath, sizeof(modsPath), "%s", fs_get_write_path(MOD_DIRECTORY)) < 0) {
-        return 0;
-    }
-    if (!fs_sys_dir_exists(modsPath) && !fs_sys_mkdir(modsPath)) {
-        return 0;
-    }
-
-    char fullPath[SYS_MAX_PATH] = { 0 };
-    if (snprintf(fullPath, sizeof(fullPath), "%s/%s", modsPath, filename) < 0 ||
-        strlen(fullPath) >= sizeof(fullPath)) {
-        return 0;
-    }
-
-    FILE* output = fopen(fullPath, "wb");
-    if (!output) {
-        return 0;
-    }
-    size_t written = fwrite(contents, 1, size, output);
-    bool closeOk = fclose(output) == 0;
-    if (written != size || !closeOk) {
-        remove(fullPath);
-        return 0;
-    }
-
-    /* The browser UI reloads the page after saving; the next startup discovers the mod safely. */
-    return 1;
-}
-#endif
