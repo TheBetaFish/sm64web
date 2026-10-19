@@ -72,3 +72,11 @@ body{display:block;gap:0}
 #sm64web-stage:fullscreen{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh}
 #sm64web-stage:fullscreen canvas{width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
 #sm64web-stage.sm64web-fullscreen-fallback{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:99999}
+
+
+/* Optional live frame-pacing overlay; no iframe or second game canvas. */
+#sm64web-fps-graph{position:absolute;top:12px;left:12px;z-index:30;width:200px;height:76px;padding:7px 9px;border:1px solid rgba(255,255,255,.35);border-radius:5px;background:rgba(0,0,0,.78);color:#fff;font:700 12px monospace;transition:opacity .3s;pointer-events:none}
+#sm64web-fps-canvas{display:block;width:180px;height:50px}
+#sm64web-fps-label{position:absolute;top:8px;right:8px;padding:2px 4px;background:rgba(0,0,0,.65)}
+#sm64web-fps-graph.sm64web-fps-hidden{opacity:0}
+@media(max-width:600px){#sm64web-fps-graph{top:8px;left:8px;transform:scale(.85);transform-origin:top left}}
