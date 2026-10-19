@@ -88,6 +88,12 @@ void djui_panel_pause_create(struct DjuiBase* caller) {
             djui_button_create(body, DLANG(PAUSE, SERVER_SETTINGS), DJUI_BUTTON_STYLE_NORMAL, djui_panel_client_server_settings_create);
         }
 
+#ifdef __EMSCRIPTEN__
+        // Keep the in-game Mods entry available in both solo and relay
+        // multiplayer. The panel is populated by Lua mods that register
+        // pause-menu elements (for example, the Cheats mod).
+        djui_button_create(body, "Mods", DJUI_BUTTON_STYLE_NORMAL, djui_panel_mod_menu_create);
+#else
         struct Mod* addedMods[MAX_HOOKED_MOD_MENU_ELEMENTS] = { 0 };
         int modCount = 0;
         for (int i = 0; i < gHookedModMenuElementsCount; i++) {
@@ -119,6 +125,7 @@ void djui_panel_pause_create(struct DjuiBase* caller) {
         } else if (gHookedModMenuElementsCount > 0) {
             djui_button_create(body, DLANG(PAUSE, MOD_MENU), DJUI_BUTTON_STYLE_NORMAL, djui_panel_mod_menu_create);
         }
+#endif
 
 #ifdef __EMSCRIPTEN__
         djui_button_create(body, "Save Game", DJUI_BUTTON_STYLE_NORMAL, djui_panel_pause_save);
