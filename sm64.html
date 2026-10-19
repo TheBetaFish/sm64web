@@ -1,0 +1,158 @@
+```html
+<style>
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #sm64-game-wrapper {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    width: 100dvw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: #000;
+    z-index: 99999;
+  }
+
+  #sm64-game-wrapper canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    outline: none;
+    background: #000;
+  }
+
+  #sm64-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font: 18px Arial, sans-serif;
+    text-align: center;
+    pointer-events: none;
+  }
+</style>
+
+<div id="sm64-game-wrapper">
+  <div id="sm64-loading">Loading SM64 Web...</div>
+  <canvas id="canvas" tabindex="0"></canvas>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // The actual GitHub Pages build directory.
+  var BASE_URL = "https://thebetafish.github.io/sm64web/";
+
+  var wrapper = document.getElementById("sm64-game-wrapper");
+  var canvas = document.getElementById("canvas");
+  var loading = document.getElementById("sm64-loading");
+
+  canvas.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
+  });
+
+  // F toggles fullscreen; there is no fullscreen button.
+  document.addEventListener("keydown", function (event) {
+    if (
+      event.key.toLowerCase() !== "f" ||
+      event.repeat ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey
+    ) return;
+
+    if (
+      event.target &&
+      /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)
+    ) return;
+
+    event.preventDefault();
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(console.error);
+    } else if (wrapper.requestFullscreen) {
+      wrapper.requestFullscreen().catch(function (error) {
+        console.error("Fullscreen failed:", error);
+      });
+    }
+  }, true);
+
+  // Set up Emscripten BEFORE either project script is loaded.
+  window.Module = {
+    canvas: canvas,
+
+    locateFile: function (path) {
+      return BASE_URL + path;
+    },
+
+    print: function (text) {
+      console.log(text);
+    },
+
+    printErr: function (text) {
+      console.error(text);
+    },
+
+    setStatus: function (text) {
+      if (text) {
+        loading.style.display = "block";
+        loading.textContent = text;
+      } else {
+        loading.style.display = "none";
+      }
+    },
+
+    onRuntimeInitialized: function () {
+      loading.style.display = "none";
+      canvas.focus({ preventScroll: true });
+      console.log("SM64 Web initialized.");
+    },
+
+    onAbort: function (reason) {
+      loading.style.display = "block";
+      loading.textContent = "Game failed to start. Check the browser console.";
+      console.error("SM64 Web aborted:", reason);
+    }
+  };
+
+  // Load the real project ROM picker FIRST. Its preRun hook waits for
+  // the user to select a ROM and writes it to /sm64-upload.z64.
+  var uploader = document.createElement("script");
+  uploader.src = BASE_URL + "rom-upload.js";
+
+  uploader.onload = function () {
+    // Only load the Emscripten runtime after the ROM uploader has
+    // registered its Module.preRun hook.
+    var game = document.createElement("script");
+    game.src = BASE_URL + "sm64coopdx.js";
+
+    game.onerror = function () {
+      loading.textContent =
+        "Could not load sm64coopdx.js. Check the deployed build URL.";
+      console.error("Failed to load:", game.src);
+    };
+
+    document.head.appendChild(game);
+  };
+
+  uploader.onerror = function () {
+    loading.textContent =
+      "Could not load the project's ROM uploader.";
+    console.error("Failed to load:", uploader.src);
+  };
+
+  document.head.appendChild(uploader);
+})();
+</script>
+```
