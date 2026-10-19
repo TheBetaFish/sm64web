@@ -38,7 +38,7 @@ function setup(){
   header.innerHTML='<div class="sm64web-brand"><span class="sm64web-mark">64</span><div>sm64web<div class="sm64web-subtitle">Experimental browser build</div></div></div><span class="sm64web-status">LOCAL ROM · SOLO PLAY</span>';
   var stage=document.createElement("main");stage.id="sm64web-stage";stage.setAttribute("aria-label","Super Mario 64 game viewport");
   var controls=document.createElement("footer");controls.id="sm64web-controls";
-  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Select Play Solo in the game menu to begin.</span></div><div class="sm64web-control-group"><button class="sm64web-control" id="sm64web-fullscreen" type="button">Fullscreen</button></div><section id="sm64web-relay" aria-label="Multiplayer"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="wss://sm64web-relay.onrender.com/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Multiplayer server not connected.</span></div></section>';
+  controls.innerHTML='<div class="sm64web-control-group"><span class="sm64web-hint" role="status">Press F to toggle fullscreen.</span></div><section id="sm64web-relay" aria-label="Multiplayer"><div class="sm64web-relay-title">Experimental multiplayer relay</div><div class="sm64web-relay-fields"><label>Relay URL <input id="sm64web-relay-url" value="wss://sm64web-relay.onrender.com/" spellcheck="false" autocomplete="off"></label><label>Room code <input id="sm64web-room-code" maxlength="6" placeholder="ABC234" spellcheck="false" autocomplete="off"></label></div><div class="sm64web-relay-actions"><button class="sm64web-control" id="sm64web-create-room" type="button">Create room</button><button class="sm64web-control" id="sm64web-join-room" type="button">Join room</button><button class="sm64web-control" id="sm64web-leave-room" type="button" disabled>Leave room</button><button class="sm64web-control" id="sm64web-start-host" type="button" disabled>Start as host</button><button class="sm64web-control" id="sm64web-start-client" type="button" disabled>Start as client</button><span id="sm64web-relay-status" role="status">Multiplayer server not connected.</span></div></section>';
   canvas.parentNode.insertBefore(header,canvas);canvas.parentNode.insertBefore(stage,canvas);stage.appendChild(canvas);stage.parentNode.insertBefore(controls,stage.nextSibling);
   var hint=controls.querySelector(".sm64web-hint");
   function status(message){if(hint)hint.textContent=message;}
@@ -326,10 +326,33 @@ function setup(){
   roomInput.addEventListener("pointerdown",function(e){e.stopPropagation();});
   roomInput.addEventListener("click",function(e){e.stopPropagation();});
   roomInput.addEventListener("input",function(){roomInput.value=roomInput.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g,"").slice(0,6);});
-  var btn=document.getElementById("sm64web-fullscreen");
-  function sync(){btn.textContent=(document.fullscreenElement===stage)?"Exit fullscreen":"Fullscreen";}
-  btn.addEventListener("click",function(){if(document.fullscreenElement){if(document.exitFullscreen)document.exitFullscreen();}else if(stage.requestFullscreen){stage.requestFullscreen().catch(function(){stage.classList.add("sm64web-fullscreen-fallback");});}else stage.classList.add("sm64web-fullscreen-fallback");});
-  document.addEventListener("fullscreenchange",sync);sync();
+  function toggleFullscreen(){
+    if(document.fullscreenElement){
+      if(document.exitFullscreen)document.exitFullscreen().catch(function(){});
+      return;
+    }
+    stage.classList.remove("sm64web-fullscreen-fallback");
+    if(stage.requestFullscreen){
+      try{
+        var request=stage.requestFullscreen();
+        if(request&&typeof request.catch==="function")request.catch(function(){
+          stage.classList.add("sm64web-fullscreen-fallback");
+        });
+      }catch(_){stage.classList.add("sm64web-fullscreen-fallback");}
+    }else{
+      stage.classList.add("sm64web-fullscreen-fallback");
+    }
+  }
+  document.addEventListener("keydown",function(e){
+    if(e.repeat||e.key.toLowerCase()!=="f"||e.altKey||e.ctrlKey||e.metaKey)return;
+    var target=e.target;
+    if(target&&(target.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)))return;
+    e.preventDefault();
+    toggleFullscreen();
+  });
+  document.addEventListener("fullscreenchange",function(){
+    if(document.fullscreenElement!==stage)stage.classList.remove("sm64web-fullscreen-fallback");
+  });
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup);else setup();
 })();
