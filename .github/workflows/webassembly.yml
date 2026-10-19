@@ -47,17 +47,24 @@ jobs:
           mkdir -p lib/lua/emscripten
           cp /tmp/lua-5.3.6/src/liblua.a lib/lua/emscripten/liblua53.a
 
-      - name: Rebuild audio banks with wasm32 pointer layout
+      - name: Rebuild audio banks with wasm32 pointer layout when full samples are available
         shell: bash
         run: |
           set -euxo pipefail
-          make -C tools
-          mapfile -t sample_targets < <(find sound/samples -type f -name '*.aiff' -print | sed 's#^sound/#build/us_pc/sound/#; s/\.aiff$/.aifc/')
-          make -j2 "${sample_targets[@]}"
-          python3 tools/assemble_web_audio.py --endian little --bitwidth 64 \
-            build/us_pc/sound/samples sound/sound_banks \
-            build/us_pc/sound/sound_data.ctl build/us_pc/sound/ctl_header \
-            sound/sound_data.tbl build/us_pc/sound/tbl_header
+          # The normal sound bank set references original-ROM sample banks such
+          # as sfx_1. CI does not have the user's ROM, so rebuilding from only
+          # the custom AIFF sources would fail and produce an incomplete bank set.
+          if [[ -d sound/samples/sfx_1 ]]; then
+            make -C tools
+            mapfile -t sample_targets < <(find sound/samples -type f -name '*.aiff' -print | sed 's#^sound/#build/us_pc/sound/#; s/\.aiff$/.aifc/')
+            make -j2 "${sample_targets[@]}"
+            python3 tools/assemble_web_audio.py --endian little --bitwidth 64 \
+              build/us_pc/sound/samples sound/sound_banks \
+              build/us_pc/sound/sound_data.ctl build/us_pc/sound/ctl_header \
+              sound/sound_data.tbl build/us_pc/sound/tbl_header
+          else
+            echo "Skipping audio-bank regeneration: required ROM-derived sample bank sound/samples/sfx_1 is unavailable."
+          fi
 
       - name: Prepare zlib headers for WebAssembly
         shell: bash
