@@ -398,7 +398,7 @@ int sm64web_install_lua_mod(const char* filename, const char* contents, size_t s
         return 0;
     }
 
-    mods_refresh_local();
+    /* The browser UI reloads the page after saving; the next startup discovers the mod safely. */
     return 1;
 }
 #endif
