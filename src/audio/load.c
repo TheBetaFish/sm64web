@@ -1435,6 +1435,16 @@ static void web_trace_bank_sample_pointers(s32 bankId) {
 #ifndef VERSION_SH
 struct AudioBank *bank_load_immediate(s32 bankId, s32 arg1) {
 #ifdef __EMSCRIPTEN__
+    /* The committed bank blobs use a serialized pointer layout that has not
+     * yet been converted to wasm32. Do not parse them as native pointers:
+     * malformed nested offsets can trap the whole browser runtime. Keep the
+     * game running without sequence banks until the blob conversion is fixed. */
+    WEB_AUDIO_TRACE("WEB AUDIO: skipping bank %d; serialized bank pointer layout is not wasm32-safe\n", bankId);
+    (void) bankId;
+    (void) arg1;
+    return NULL;
+#endif
+#ifdef __EMSCRIPTEN__
     sWebAudioTraceThisBank = (sWebAudioTraceBankCount++ < 3);
     if (sWebAudioTraceThisBank) {
         const u8 *raw = (const u8 *)gAlCtlHeader->seqArray[bankId].offset;
