@@ -31,12 +31,7 @@
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(mods));return true;}catch(_){return false;}
   }
   function restoreSavedMods(){
-    if(restoring)return; var M=getModule();
-    if(typeof M._sm64web_install_lua_mod!=="function"||(M.calledRun!==true&&M.runtimeInitialized!==true))return;
-    restoring=true; var mods=getSavedMods(),count=0;
-    mods.forEach(function(m){if(installSource(m.name,m.source).ok)count++;});
-    if(mods.length&&panel)setStatus("Restored "+count+" saved Lua mod(s). Open the in-game Mods menu to enable them.");
-    restoring=false;
+    setStatus("Saved Lua mods are restored before game startup. Reload the page after adding a mod.");
   }
   function renderSavedMods(){
     var list=document.getElementById("sm64web-mods-list"); if(!list)return;
@@ -86,16 +81,15 @@
         var source=await file.text(),result=installSource(file.name,source);
         if(!result.ok){setStatus(result.message,true);return;}
         var saved=saveMod(file.name,source);
-        setStatus(result.message+(saved?" It will be restored on future visits.":" Installed for this session, but it was too large for browser persistence."));
+        setStatus((saved ? "Saved " + file.name + ". Reload the page to load it; it will be injected before the game starts." : result.message + " Installed for this session, but it was too large for browser persistence."));
         renderSavedMods();
       }catch(e){setStatus("Could not read the file: "+e.message,true);}
     });
     renderSavedMods();
   }
   function start(){
-    makePanel();restoreSavedMods();var attempts=0;
-    function retry(){restoreSavedMods();attempts++;var M=getModule();if(attempts<120&&typeof M._sm64web_install_lua_mod!=="function")window.setTimeout(retry,500);}
-    retry();
+    makePanel();
+    restoreSavedMods();
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
 })();
