@@ -77,7 +77,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 EXE=build/us_pc/sm64coopdx.html EXTRA_CFLAGS="-I/tmp/zlib-1.3.1 -DUSE_GLES=1" LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sMIN_WEBGL_VERSION=1 -sMAX_WEBGL_VERSION=1 -sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=2 -sSAFE_HEAP=0 -sSTACK_OVERFLOW_CHECK=2 -sSTACK_SIZE=1048576 -sDEMANGLE_SUPPORT=1 -sEXPORTED_RUNTIME_METHODS=allocateUTF8,_free,FS -sEXPORTED_FUNCTIONS=_main -g --profiling-funcs -gsource-map --preload-file mods@/home/web_user/.local/share/sm64coopdx/mods -Llib/lua/emscripten -llua53 -lm" 2>&1 | tee emscripten-build.log
+          emmake make -j2 CC=emcc CXX=em++ CC_CHECK=emcc DISCORD_SDK=0 COOPNET=0 UPDATER=0 ICON=0 EXE=build/us_pc/sm64coopdx.html EXTRA_CFLAGS="-I/tmp/zlib-1.3.1 -DUSE_GLES=1" LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sMIN_WEBGL_VERSION=1 -sMAX_WEBGL_VERSION=1 -sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=2 -sSAFE_HEAP=0 -sSTACK_OVERFLOW_CHECK=2 -sSTACK_SIZE=1048576 -sDEMANGLE_SUPPORT=1 -sEXPORTED_RUNTIME_METHODS=allocateUTF8,_free,FS -sEXPORTED_FUNCTIONS=_main -g --profiling-funcs -gsource-map --preload-file mods@/mods -Llib/lua/emscripten -llua53 -lm" 2>&1 | tee emscripten-build.log
 
       - name: Upload build log
         if: always()
