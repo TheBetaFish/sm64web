@@ -201,8 +201,11 @@ static u32 mods_count_directory(char* modsBasePath) {
 static void mods_load(struct Mods* mods, char* modsBasePath, UNUSED bool isUserModPath) {
     LOADING_SCREEN_MUTEX(snprintf(gCurrLoadingSegment.str, 256, "Generating DynOS Packs In %s Mod Path:\n\\#808080\\%s", isUserModPath ? "User" : "Local", modsBasePath));
 
-    // generate bins
+    // The browser build currently ships Lua mods only. DynOS pack generation
+    // recursively scans mod directories and is unnecessary for Lua-only web mods.
+#ifndef __EMSCRIPTEN__
     dynos_generate_packs(modsBasePath);
+#endif
 
     // sanity check
     if (modsBasePath == NULL) {
@@ -309,6 +312,11 @@ void mods_init(void) {
     // load mod cache
     mod_cache_load();
     mods_refresh_local();
+#ifdef __EMSCRIPTEN__
+    // Keep the bundled Cheats Lua mod available in the web build so its
+    // pause-menu checkboxes are registered in both solo and multiplayer.
+    mods_enable("cheats.lua");
+#endif
 }
 
 void mods_clear(struct Mods* mods) {
